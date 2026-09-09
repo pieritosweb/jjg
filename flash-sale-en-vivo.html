@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Flash Sale — Jar Jar Green</title>
+<meta property="og:title" content="⚡ Flash Sale — Jar Jar Green">
+<meta property="og:description" content="Oferta relámpago exclusiva de Jar Jar Green — stock y tiempo limitado 🌿">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jarjargreen.com/flash-sale-en-vivo.html">
+<meta property="og:locale" content="es_PE">
+<meta property="og:image" content="https://jarjargreen.com/og-image.jpg">
+<meta property="og:image:secure_url" content="https://jarjargreen.com/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Jar Jar Green — Plantas y tecnología en Lima, Perú">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --verde-oscuro: #1a2e1c; --verde-hoja: #2a7a3b; --crema: #edf7ed;
+    --gris: #6b8a6d; --borde: #d0e8d2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'DM Sans', sans-serif;
+    background-image: url('fondo-vivo.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: var(--verde-oscuro); min-height: 100vh; padding: 24px 16px 100px;
+  }
+  @media (max-width: 600px) {
+    body { background-image: url('fondo-vivo-mobile.jpg'); background-attachment: scroll; }
+  }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 20px; padding: 24px 22px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); margin-bottom: 14px; }
+  .logo { font-family: 'Spectral', serif; font-weight: 700; font-size: 1.1rem; color: var(--verde-hoja); text-align: center; margin-bottom: 4px; }
+  .estado-msg { text-align: center; font-size: 0.9rem; color: var(--gris); padding: 24px 0; }
+  .flash-titulo { font-family: 'Spectral', serif; font-size: 1.3rem; font-weight: 700; text-align: center; margin: 8px 0 6px; line-height: 1.35; }
+  .flash-badge-wrap { text-align: center; margin-bottom: 14px; }
+  .flash-badge {
+    display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg,#ff7a1a,#ff4d1a);
+    color: #fff; font-weight: 700; font-size: 1rem; padding: 8px 18px; border-radius: 24px;
+  }
+  .puntos-aviso {
+    font-size: 0.74rem; color: #8a6a3a; background: #fdf6e8; border: 1px solid #ecdcb8;
+    border-radius: 10px; padding: 8px 12px; margin: 10px 0; text-align: center; font-weight: 700;
+  }
+  .flash-countdown {
+    display: flex; justify-content: center; gap: 8px; margin: 4px 0 16px;
+    font-family: 'Spectral', serif; font-weight: 700; font-size: 1.7rem; color: #ff4d1a;
+  }
+  .flash-countdown .unidad { background: #fff3ea; border-radius: 10px; padding: 6px 12px; min-width: 58px; text-align: center; }
+  .flash-countdown .sep { color: #ffb894; }
+  .btn-google {
+    width: 100%; background: #fff; color: #1a2e1c; border: 1.5px solid var(--borde); border-radius: 10px;
+    padding: 13px; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.92rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-google:hover { background: #f7fbf7; }
+  .form-group { margin-bottom: 10px; }
+  label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--gris); margin-bottom: 5px; }
+  input {
+    width: 100%; padding: 11px 13px; border: 1.5px solid var(--borde); border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem; background: #fafffb;
+  }
+  input:focus { outline: none; border-color: var(--verde-hoja); }
+  button.btn-principal {
+    width: 100%; background: linear-gradient(135deg,#ff7a1a,#ff4d1a); color: #fff; border: none; border-radius: 10px;
+    padding: 13px; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.92rem; cursor: pointer;
+  }
+  button.btn-principal:disabled { background: #d8ddd8; color: #6b756c; cursor: default; }
+
+  .producto-card { display: flex; gap: 12px; align-items: center; }
+  .producto-img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; background: #f0f0f0; flex-shrink: 0; }
+  .producto-img-wrap { position: relative; cursor: zoom-in; flex-shrink: 0; }
+  .producto-img-count {
+    position: absolute; bottom: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff;
+    font-size: 0.6rem; font-weight: 700; padding: 1px 5px; border-radius: 8px;
+  }
+  .producto-info { flex: 1; min-width: 0; }
+  .producto-nombre { font-family: 'Spectral', serif; font-weight: 700; font-size: 0.98rem; margin-bottom: 3px; }
+  .producto-precios { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+  .precio-original { text-decoration: line-through; color: #bbb; font-size: 0.85rem; }
+  .precio-final { font-family: 'Spectral', serif; font-weight: 700; font-size: 1.1rem; color: #ff4d1a; }
+  .producto-stock { font-size: 0.72rem; color: var(--gris); }
+  .producto-stock.ultima { color: #d9822b; font-weight: 700; }
+  .qty-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .qty-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--borde); background: #fafffb;
+    font-size: 1.1rem; font-weight: 700; color: var(--verde-hoja); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .qty-btn:disabled { opacity: 0.4; cursor: default; }
+  .qty-num { font-family: 'Spectral', serif; font-weight: 700; font-size: 1rem; min-width: 22px; text-align: center; }
+
+  .carrito-barra {
+    position: fixed; bottom: 0; left: 0; right: 0; background: #fff; box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    padding: 14px 16px; display: none; z-index: 100;
+  }
+  .carrito-barra.visible { display: block; }
+  .carrito-barra-inner { max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+  .carrito-total { font-family: 'Spectral', serif; font-weight: 700; font-size: 1.1rem; white-space: nowrap; }
+  .carrito-total small { display: block; font-size: 0.65rem; color: var(--gris); font-weight: 400; }
+
+  .ok-msg { text-align: center; padding: 6px 0; }
+  .ok-msg .icono { font-size: 2.2rem; margin-bottom: 10px; }
+  .resumen-linea { font-size: 0.85rem; margin-bottom: 8px; text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .resumen-linea .resumen-nombre { flex: 1; }
+  .resumen-linea .resumen-precio { white-space: nowrap; font-weight: 700; }
+  .wsp-link {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px;
+    background: #25d366; color: #fff; text-decoration: none; padding: 13px; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.92rem; font-weight: 700;
+  }
+  .btn-seguir-reservando {
+    display: block; width: 100%; margin-top: 10px; background: none; border: 1.5px solid var(--borde);
+    color: var(--verde-hoja); padding: 12px; border-radius: 10px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 700;
+  }
+  .btn-seguir-reservando:hover { background: #f3f9f3; }
+  .flash-lightbox {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 500;
+    align-items: center; justify-content: center;
+  }
+  .flash-lightbox.active { display: flex; }
+  .flash-lightbox img { max-width: 92vw; max-height: 90vh; border-radius: 8px; object-fit: contain; cursor: pointer; }
+  .flash-lb-close {
+    position: absolute; top: calc(env(safe-area-inset-top, 0px) + 16px); right: 20px; color: #fff;
+    font-size: 2rem; cursor: pointer; background: none; border: none; z-index: 1;
+  }
+  .flash-lb-nav {
+    position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.15);
+    border: none; color: #fff; font-size: 1.5rem; width: 44px; height: 44px; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  @media (hover: none) { .flash-lb-nav { display: none !important; } }
+  .flash-lb-nav.prev { left: 16px; }
+  .flash-lb-nav.next { right: 16px; }
+  .flash-lb-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">🌿 JAR JAR GREEN</div>
+  <div id="contenido"><div class="card"><div class="estado-msg">Cargando...</div></div></div>
+</div>
+<div class="carrito-barra" id="carritoBarra">
+  <div class="carrito-barra-inner">
+    <div class="carrito-total" id="carritoTotalTxt"></div>
+    <button class="btn-principal" id="btnReservarCarrito" onclick="reservarCarrito()" style="flex:1">⚡ Reservar todo con descuento</button>
+  </div>
+</div>
+
+<div class="flash-lightbox" id="flashLightbox" onclick="cerrarLightboxFlash(event)">
+  <button class="flash-lb-close" onclick="cerrarLightboxFlash()">✕</button>
+  <button class="flash-lb-nav prev" id="flashLbPrev" onclick="lbNavFlash(-1);event.stopPropagation()">‹</button>
+  <img id="flashLbImg" src="" alt="" onclick="lbTapNavFlash(event)">
+  <button class="flash-lb-nav next" id="flashLbNext" onclick="lbNavFlash(1);event.stopPropagation()">›</button>
+  <div class="flash-lb-counter" id="flashLbCounter"></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://saejzjhxarlbdmrgjeuc.supabase.co/";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZWp6amh4YXJsYmRtcmdqZXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM1NTgsImV4cCI6MjA5Nzg5OTU1OH0.pG6hVqYmt2CSjxx5iHcz1Hm3DzNGScyP0P4SlP4Qxzo";
+const sbClient = window.supabase.createClient(SUPABASE_URL.replace(/\/$/,""), SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "jjg_auth", storage: window.localStorage }
+});
+
+const params = new URLSearchParams(location.search);
+const flashSlug = params.get("s");
+let usuarioActual = null;
+let flash = null;
+let productos = [];
+
+function formatoWhatsapp(texto){
+  if (!texto) return "";
+  let resultado = texto
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*(\S(?:[^*]*\S)?)\*/g, "<strong>$1</strong>")
+    .replace(/_(\S(?:[^_]*\S)?)_/g, "<em>$1</em>")
+    .replace(/~(\S(?:[^~]*\S)?)~/g, "<s>$1</s>");
+  resultado = resultado.replace(/(https?:\/\/[^\s<]+)/g, (match, url, offset, str) => {
+    const antes = str.slice(0, offset);
+    const aberturasA = (antes.match(/<a /g) || []).length;
+    const cierresA = (antes.match(/<\/a>/g) || []).length;
+    if (aberturasA > cierresA) return match;
+    return `<a href="${url}" target="_blank" rel="noopener">${url}</a>`;
+  });
+  return resultado;
+}
+let carrito = {};
+let lbFotos = [];
+let lbIdx = 0;
+
+function abrirLightboxFlash(itemId){
+  const item = productos.find(p => p.id === itemId);
+  if (!item) return;
+  lbFotos = Array.isArray(item.imagenes) && item.imagenes.length ? item.imagenes : [];
+  if (!lbFotos.length) return;
+  lbIdx = 0;
+  renderLightboxFlash();
+  document.getElementById("flashLightbox").classList.add("active");
+}
+function renderLightboxFlash(){
+  document.getElementById("flashLbImg").src = lbFotos[lbIdx];
+  document.getElementById("flashLbCounter").textContent = lbFotos.length > 1 ? `${lbIdx + 1} / ${lbFotos.length}` : "";
+  document.getElementById("flashLbPrev").style.display = lbFotos.length > 1 ? "" : "none";
+  document.getElementById("flashLbNext").style.display = lbFotos.length > 1 ? "" : "none";
+}
+function lbNavFlash(delta){
+  lbIdx = (lbIdx + delta + lbFotos.length) % lbFotos.length;
+  renderLightboxFlash();
+}
+function lbTapNavFlash(e){
+  e.stopPropagation();
+  if (lbFotos.length <= 1) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  lbNavFlash(x < rect.width / 2 ? -1 : 1);
+}
+function cerrarLightboxFlash(e){
+  if (e && e.target !== document.getElementById("flashLightbox")) return;
+  document.getElementById("flashLightbox").classList.remove("active");
+}
+(function(){
+  const el = document.getElementById("flashLightbox");
+  if (!el) return;
+  let startX = 0, startY = 0, tocando = false;
+  el.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; startY = e.touches[0].clientY; tocando = true; }, { passive: true });
+  el.addEventListener("touchmove", (e) => { if (tocando) e.preventDefault(); }, { passive: false });
+  el.addEventListener("touchend", (e) => {
+    if (!tocando) return;
+    tocando = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50 && lbFotos.length > 1) lbNavFlash(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
+document.addEventListener("keydown", (e) => {
+  if (!document.getElementById("flashLightbox").classList.contains("active")) return;
+  if (e.key === "ArrowLeft") lbNavFlash(-1);
+  if (e.key === "ArrowRight") lbNavFlash(1);
+  if (e.key === "Escape") cerrarLightboxFlash({ target: document.getElementById("flashLightbox") });
+});
+
+
+function resolverWsp(userId){
+  return localStorage.getItem("jjg_wsp_" + userId) || null;
+}
+
+function textoStock(stockDisponible, esPack){
+  if (stockDisponible <= 0) return { texto: "😢 ¡Agotado! Ya no queda de esta", ultima: false };
+  if (stockDisponible === 1) return { texto: esPack ? "⚠️ ¡Último pack disponible!" : "⚠️ ¡Última unidad disponible!", ultima: true };
+  return { texto: `🟢 ${stockDisponible} ${esPack ? "packs" : "unidades"} disponibles`, ultima: false };
+}
+
+async function init(){
+  if (!flashSlug) { mostrarSoloMensaje("Link inválido — pídele el link correcto a quien te lo compartió. 🌿"); return; }
+
+  const { data: { session } } = await sbClient.auth.getSession();
+  if (session?.user) {
+    usuarioActual = {
+      id: session.user.id,
+      nombre: session.user.user_metadata?.full_name || session.user.email,
+      email: session.user.email,
+      wsp: resolverWsp(session.user.id)
+    };
+  }
+
+  await cargarFlashYRenderizar();
+  suscribirseAFlashVivo();
+}
+
+function mostrarSoloMensaje(msg){
+  detenerCountdown();
+  document.getElementById("contenido").innerHTML = `<div class="card"><div class="estado-msg">${msg}</div></div>`;
+  document.getElementById("carritoBarra").classList.remove("visible");
+}
+
+async function cargarFlashYRenderizar(){
+  try {
+    const res = await fetch(`${SUPABASE_URL}rest/v1/flash_sales?slug=eq.${encodeURIComponent(flashSlug)}&select=*`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    flash = data?.[0] || null;
+  } catch (e) { flash = null; }
+
+  if (flash && flash.activo && flash.expira_en && new Date(flash.expira_en) <= new Date()) {
+    flash.activo = false;
+    fetch(`${SUPABASE_URL}rest/v1/rpc/finalizar_flash_sale_si_expiro`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_slug: flashSlug })
+    }).catch(() => {});
+  }
+
+  if (!flash || !flash.activo) { mostrarSoloMensaje("Esta oferta ya no está disponible. 🌿"); return; }
+
+  if (flash.oculto_temporal) { mostrarSoloMensaje("Esta oferta está en mantenimiento por un momento — vuelve a intentarlo en un rato. 🌿"); return; }
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}rest/v1/flash_sale_items?flash_sale_id=eq.${flash.id}&select=item_id,precio_descuento,stock_asignado,items(*)&order=orden.asc`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    const resVendidos = await fetch(`${SUPABASE_URL}rest/v1/reservas?flash_sale_slug=eq.${flashSlug}&select=item_id,cantidad`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    const vendidosData = await resVendidos.json();
+    const packSizePorItem = {};
+    (data || []).forEach(d => { if (d.items) packSizePorItem[d.item_id] = d.items.pack_size || 1; });
+    const vendidoPorItem = {};
+    (Array.isArray(vendidosData) ? vendidosData : []).forEach(v => { vendidoPorItem[v.item_id] = (vendidoPorItem[v.item_id] || 0) + (v.cantidad * (packSizePorItem[v.item_id] || 1)); });
+    productos = (data || []).filter(d => d.items).map(d => {
+      const vendido = vendidoPorItem[d.item_id] || 0;
+      const stockFlashRestante = Math.max(0, (d.stock_asignado || 0) - vendido);
+      return { ...d.items, precio_descuento: d.precio_descuento, stock: Math.min(stockFlashRestante, d.items.stock) };
+    });
+  } catch (e) { productos = []; }
+
+  if (!productos.length) { mostrarSoloMensaje("Esta oferta ya no está disponible. 🌿"); return; }
+
+  carrito = {};
+  const btnReservar = document.getElementById("btnReservarCarrito");
+  if (btnReservar) { btnReservar.disabled = false; btnReservar.textContent = "⚡ Reservar todo con descuento"; }
+  renderTodo();
+}
+
+function precioFinal(item){
+  return item.precio_descuento;
+}
+
+function renderTodo(){
+  let accionInicial = "";
+  if (!usuarioActual) {
+    accionInicial = `
+      <button class="btn-google" onclick="loginGoogle()">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+        Ingresar con Google para reservar
+      </button>`;
+  } else if (!usuarioActual.wsp) {
+    accionInicial = `
+      <div class="form-group">
+        <label>Tu WhatsApp (para coordinar tu compra)</label>
+        <input type="tel" id="fWsp" placeholder="Ej: 987654321" maxlength="9">
+      </div>
+      <button class="btn-principal" onclick="guardarWspInline()">Continuar</button>`;
+  }
+
+  const listoParaComprar = !!(usuarioActual && usuarioActual.wsp);
+
+  const productosHtml = productos.map(item => {
+    const esPack = item.pack_size > 1;
+    const stockDisponible = esPack ? Math.floor(item.stock / item.pack_size) : item.stock;
+    const st = textoStock(stockDisponible, esPack);
+    const fotos = Array.isArray(item.imagenes) ? item.imagenes : [];
+    const img = fotos[0] || "";
+    const cant = carrito[item.id] || 0;
+    return `
+    <div class="card producto-card">
+      ${img ? `<div class="producto-img-wrap" onclick="abrirLightboxFlash(${item.id})"><img class="producto-img" src="${img}">${fotos.length > 1 ? `<span class="producto-img-count">${fotos.length}</span>` : ""}</div>` : '<div class="producto-img"></div>'}
+      <div class="producto-info">
+        <div class="producto-nombre">${item.nombre}</div>
+        <div class="producto-precios">
+          <span class="precio-original">S/ ${item.precio}${esPack ? "/pack" : ""}</span>
+          <span class="precio-final">S/ ${precioFinal(item)}${esPack ? "/pack" : ""}</span>
+        </div>
+        <div class="producto-stock ${st.ultima ? "ultima" : ""}">${st.texto}</div>
+        ${listoParaComprar && stockDisponible > 0 ? `
+        <div class="qty-row">
+          <button class="qty-btn" onclick="cambiarCantidad(${item.id},-1)" ${cant<=0?"disabled":""}>−</button>
+          <div class="qty-num">${cant}</div>
+          <button class="qty-btn" onclick="cambiarCantidad(${item.id},1)" ${cant>=stockDisponible?"disabled":""}>+</button>
+        </div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("contenido").innerHTML = `
+    <div class="card">
+      ${flash.titulo ? `<div class="flash-titulo">${formatoWhatsapp(flash.titulo)}</div>` : ""}
+      <div class="flash-badge-wrap"><span class="flash-badge">⚡ OFERTAS FLASH</span></div>
+      ${flash.expira_en ? `<div class="flash-countdown" id="flashCountdown"></div>` : ""}
+      <div class="puntos-aviso">⚡ Los productos de esta oferta no acumulan ni se pueden pagar con JarJar Puntos.</div>
+      ${accionInicial}
+    </div>
+    ${listoParaComprar ? productosHtml : ""}
+  `;
+
+  actualizarBarraCarrito();
+  iniciarCountdown();
+}
+
+let intervaloCountdown = null;
+function detenerCountdown(){
+  if (intervaloCountdown) { clearInterval(intervaloCountdown); intervaloCountdown = null; }
+}
+function iniciarCountdown(){
+  detenerCountdown();
+  if (!flash || !flash.expira_en) return;
+  const el = document.getElementById("flashCountdown");
+  if (!el) return;
+
+  function actualizar(){
+    const restanteMs = new Date(flash.expira_en) - new Date();
+    if (restanteMs <= 0) {
+      detenerCountdown();
+      mostrarSoloMensaje("⏰ Esta oferta ya terminó.");
+      fetch(`${SUPABASE_URL}rest/v1/rpc/finalizar_flash_sale_si_expiro`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_slug: flashSlug })
+      }).catch(() => {});
+      return;
+    }
+    const totalSeg = Math.floor(restanteMs / 1000);
+    const h = Math.floor(totalSeg / 3600);
+    const m = Math.floor((totalSeg % 3600) / 60);
+    const s = totalSeg % 60;
+    const pad = n => String(n).padStart(2, "0");
+    document.getElementById("flashCountdown").innerHTML =
+      `<span class="unidad">${pad(h)}</span><span class="sep">:</span><span class="unidad">${pad(m)}</span><span class="sep">:</span><span class="unidad">${pad(s)}</span>`;
+  }
+  actualizar();
+  intervaloCountdown = setInterval(actualizar, 1000);
+}
+
+function cambiarCantidad(itemId, delta){
+  const item = productos.find(p => p.id === itemId);
+  const esPack = item.pack_size > 1;
+  const max = esPack ? Math.floor(item.stock / item.pack_size) : item.stock;
+  const actual = carrito[itemId] || 0;
+  const nuevo = Math.min(max, Math.max(0, actual + delta));
+  if (nuevo <= 0) delete carrito[itemId];
+  else carrito[itemId] = nuevo;
+  renderTodo();
+}
+
+function actualizarBarraCarrito(){
+  const barra = document.getElementById("carritoBarra");
+  const idsEnCarrito = Object.keys(carrito);
+  if (!idsEnCarrito.length) { barra.classList.remove("visible"); return; }
+  let total = 0, unidades = 0;
+  idsEnCarrito.forEach(id => {
+    const item = productos.find(p => p.id === parseInt(id));
+    if (!item) return;
+    total += precioFinal(item) * carrito[id];
+    unidades += carrito[id];
+  });
+  document.getElementById("carritoTotalTxt").innerHTML = `S/ ${total.toFixed(2)}<small>${unidades} ${unidades===1?"ítem":"ítems"}</small>`;
+  barra.classList.add("visible");
+}
+
+async function loginGoogle(){
+  await sbClient.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.href } });
+}
+
+function guardarWspInline(){
+  const wsp = document.getElementById("fWsp").value.trim().replace(/\D/g,"");
+  if (!wsp || wsp.length < 9) { alert("WhatsApp inválido"); return; }
+  localStorage.setItem("jjg_wsp_" + usuarioActual.id, wsp);
+  usuarioActual.wsp = wsp;
+  renderTodo();
+}
+
+async function reservarCarrito(){
+  const btn = document.getElementById("btnReservarCarrito");
+  btn.disabled = true; btn.textContent = "Reservando...";
+  const p_carrito = Object.keys(carrito).map(id => ({ item_id: parseInt(id), cantidad: carrito[id] }));
+  try {
+    const res = await fetch(`${SUPABASE_URL}rest/v1/rpc/crear_reserva_flash`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_slug: flashSlug,
+        p_carrito,
+        p_email: usuarioActual.email,
+        p_nombre: usuarioActual.nombre,
+        p_wsp: usuarioActual.wsp,
+        p_nota_cliente: null,
+        p_max_por_usuario: 5
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      const msg = errData?.message || "";
+      if (msg.startsWith("STOCK_INSUFICIENTE")) {
+        const [, nombre, stock] = msg.split("|");
+        alert(`😅 Ya no hay suficiente stock de ${nombre} (quedan ${stock}).`);
+        await cargarFlashYRenderizar();
+      } else if (msg.startsWith("LIMITE_EXCEDIDO")) {
+        const [, nombre] = msg.split("|");
+        alert(`Ya reservaste el máximo permitido de ${nombre} (5).`);
+      } else if (msg.startsWith("FLASH_NO_DISPONIBLE")) {
+        mostrarSoloMensaje("Esta oferta ya no está disponible. 🌿");
+      } else {
+        alert("Hubo un error, intenta de nuevo.");
+      }
+      btn.disabled = false; btn.textContent = "⚡ Reservar todo con descuento";
+      return;
+    }
+    const data = await res.json();
+    mostrarConfirmacion(data);
+  } catch (e) {
+    alert("Error de conexión, intenta de nuevo.");
+    btn.disabled = false; btn.textContent = "⚡ Reservar todo con descuento";
+  }
+}
+
+function mostrarConfirmacion(data){
+  detenerCountdown();
+  document.getElementById("carritoBarra").classList.remove("visible");
+  const primerItemId = Object.keys(carrito)[0];
+  const primerItem = productos.find(p => p.id === parseInt(primerItemId));
+  const esPlanta = (primerItem?.categoria || "").toLowerCase().includes("planta");
+  const numDestino = esPlanta ? "51933668994" : "51956299339";
+  const nombreDestino = esPlanta ? "Ana" : "Piero";
+  const primerNombre = (usuarioActual.nombre || "Hola").split(" ")[0];
+
+  const msg = encodeURIComponent(`Hola ${nombreDestino}! Soy ${primerNombre}, acabo de reservar en la Flash Sale de jarjargreen.com ⚡🌿\n${data.lineas.map(l => `• ${l.item_nombre} ×${l.cantidad} — S/ ${l.item_precio}`).join("\n")}\nTotal: S/ ${Number(data.total_a_pagar).toFixed(2)}`);
+
+  document.getElementById("contenido").innerHTML = `
+    <div class="card ok-msg">
+      <div class="icono">✅</div>
+      <div class="flash-titulo">¡Reservado con descuento!</div>
+      ${data.lineas.map(l => `<div class="resumen-linea"><span class="resumen-nombre">${l.cantidad} × ${l.item_nombre}</span><span class="resumen-precio">S/ ${l.item_precio}</span></div>`).join("")}
+      <div style="font-weight:700;margin-top:8px">Total: S/ ${Number(data.total_a_pagar).toFixed(2)}</div>
+      <a class="wsp-link" href="https://wa.me/${numDestino}?text=${msg}" target="_blank">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.122.554 4.112 1.522 5.837L.057 23.885l6.219-1.437A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.003-1.37l-.36-.213-3.692.853.882-3.6-.234-.371A9.818 9.818 0 1112 21.818z"/></svg>
+        Avisar a ${nombreDestino} por WhatsApp
+      </a>
+      <button type="button" class="btn-seguir-reservando" onclick="cargarFlashYRenderizar()">🛍️ Seguir reservando más productos</button>
+    </div>`;
+}
+
+function suscribirseAFlashVivo(){
+  const canal = sbClient.channel("flash-vivo-" + flashSlug);
+  canal
+    .on("broadcast", { event: "actualizar_info" }, async () => {
+      await cargarFlashYRenderizar();
+    })
+    .on("broadcast", { event: "pausado" }, () => {
+      mostrarSoloMensaje("Esta oferta ya no está disponible. 🌿");
+    })
+    .subscribe();
+}
+
+init();
+</script>
+</body>
+</html>

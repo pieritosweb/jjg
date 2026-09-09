@@ -1,0 +1,53 @@
+[[redirects]]
+  from = "/sheet-proxy"
+  to = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_dGFrFEM1zVIDc-hUfWsKGAEMFLaQMqfjACS2Z2be5aM0ZtcdtcGqUF8dZ8ZfFgQ94iZbevxnaS5H/pub?gid=0&single=true&output=csv"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/reservas"
+  to = "/admin.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/clientes"
+  to = "/admin.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/retos"
+  to = "/admin.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sorteo"
+  to = "/admin.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/flash"
+  to = "/admin.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/feedbacks"
+  to = "/admin.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/blacklist"
+  to = "/admin.html"
+  status = 200
+  force = true

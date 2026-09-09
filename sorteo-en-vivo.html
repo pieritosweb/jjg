@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sorteo en vivo — Jar Jar Green</title>
+<meta property="og:title" content="Sorteo en vivo 🎉 — Jar Jar Green">
+<meta property="og:description" content="Sigue el sorteo de Jar Jar Green en vivo y descubre si ganaste 🌿">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jarjargreen.com/sorteo-en-vivo.html">
+<meta property="og:locale" content="es_PE">
+<meta property="og:image" content="https://jarjargreen.com/og-image.jpg">
+<meta property="og:image:secure_url" content="https://jarjargreen.com/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Jar Jar Green — Plantas y tecnología en Lima, Perú">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --verde-oscuro: #1a2e1c; --verde-hoja: #2a7a3b; --crema: #edf7ed; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'DM Sans', sans-serif;
+    background-image: url('fondo-vivo.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: var(--verde-oscuro); min-height: 100vh; display: flex; align-items: center;
+    justify-content: center; padding: 24px 16px;
+  }
+  @media (max-width: 600px) {
+    body { background-image: url('fondo-vivo-mobile.jpg'); background-attachment: scroll; }
+  }
+  .sorteo-thumbs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .sorteo-thumb {
+    width: 60px; height: 60px; object-fit: cover; border-radius: 10px;
+    cursor: zoom-in; border: 1px solid #e5ddd0;
+  }
+  .premio-bloque-vivo { margin-bottom: 10px; }
+  .premio-titulo-vivo { font-size: 0.9rem; font-weight: 600; color: #6b8a6d; margin-bottom: 6px; }
+  #lightboxSorteoVivo {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 10000; align-items: center; justify-content: center; cursor: zoom-out;
+  }
+  #lightboxSorteoVivo.active { display: flex; }
+  #lightboxImgSorteo { max-width: 92vw; max-height: 92vh; border-radius: 10px; }
+  .card {
+    background: #fff; border-radius: 20px; padding: 28px 24px; max-width: 460px; width: 100%;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08); text-align: center;
+  }
+  .logo { font-family: 'Spectral', serif; font-weight: 700; font-size: 1.05rem; color: var(--verde-hoja); margin-bottom: 6px; }
+  .estado { font-size: 0.85rem; color: #6b8a6d; margin-bottom: 18px; }
+  .sorteo-box { background: linear-gradient(135deg,#2f6b3f,#4a9c5c); border-radius: 18px; padding: 26px 18px; }
+  .sorteo-reel-wrap {
+    position: relative; height: 150px; overflow: hidden; border-radius: 12px;
+    background: #fdf6e8; margin: 0; flex: 1; min-width: 0; max-width: 260px;
+    border: 1px solid #e8dcc0;
+  }
+  .sorteo-reel-wrap::before {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: 12px;
+    background: linear-gradient(to bottom, #fdf6e8 0%, transparent 24%, transparent 76%, #fdf6e8 100%);
+  }
+  .sorteo-reel-highlight {
+    position: absolute; top: 50px; left: 0; right: 0; height: 50px; z-index: 2; pointer-events: none;
+    border-top: 2px solid #c99a1f; border-bottom: 2px solid #c99a1f; background: rgba(201,154,31,0.08);
+  }
+  .sorteo-reel { display: flex; flex-direction: column; will-change: transform; }
+  .sorteo-reel-item {
+    height: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'Spectral', serif; font-size: 1.2rem; font-weight: 700; color: rgba(47,107,63,0.4);
+    padding: 0 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .sorteo-reel-item.centro { color: #1f4d2b; }
+  .sorteo-reel-item.sorteo-reel-item-removido { opacity: 0; transform: scale(0.7); }
+  .sorteo-reel-item.sorteo-reel-espera { color: #3d5f47; font-weight: 700; }
+  @media (max-width: 420px) {
+    .card { padding: 20px 14px; }
+    .sorteo-flecha { font-size: 0.85rem; }
+    .sorteo-palanca { width: 18px; margin-left: 2px; }
+    .sorteo-palanca-mango { width: 15px; height: 15px; }
+    .sorteo-reel-item { font-size: 0.88rem; padding: 0 4px; letter-spacing: -0.2px; }
+    .sorteo-reel-item.sorteo-reel-espera { font-size: 0.78rem; }
+  }
+  .sorteo-participantes-grid { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 16px; }
+  .sorteo-chip-vivo {
+    background: #f8f4ef; border: 1px solid #e5ddd0; border-radius: 20px;
+    padding: 5px 10px; font-size: 0.76rem; color: var(--verde-oscuro);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .sorteo-chip-vivo.sorteo-chip-vivo-removido { opacity: 0; transform: scale(0.75); }
+  .sorteo-confetti {
+    position: fixed; top: -20px; width: 9px; height: 15px; z-index: 9999;
+    pointer-events: none; opacity: 0.95; border-radius: 2px;
+    animation-name: sorteoCaida; animation-timing-function: cubic-bezier(0.4,0,0.6,1); animation-fill-mode: forwards;
+  }
+  @keyframes sorteoCaida {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(520deg); opacity: 0; }
+  }
+  .sorteo-luces { display: flex; justify-content: space-between; padding: 0 4px 12px; max-width: 380px; margin: 0 auto; }
+  .sorteo-luces span {
+    width: 8px; height: 8px; border-radius: 50%; background: #ffd54f;
+    animation: sorteoParpadeo 1s infinite alternate;
+  }
+  .sorteo-luces span:nth-child(2n) { animation-delay: 0.5s; }
+  @keyframes sorteoParpadeo { from { opacity: 0.25; } to { opacity: 1; box-shadow: 0 0 6px #ffd54f; } }
+  .sorteo-fila-reel { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .sorteo-flecha { color: #ffd54f; font-size: 1.2rem; line-height: 1; flex-shrink: 0; }
+  .sorteo-palanca { position: relative; width: 26px; height: 110px; flex-shrink: 0; margin-left: 4px; }
+  .sorteo-palanca-riel {
+    position: absolute; left: 50%; top: 12px; bottom: 16px; width: 5px;
+    background: rgba(0,0,0,0.35); border-radius: 3px; transform: translateX(-50%);
+  }
+  .sorteo-palanca-base {
+    position: absolute; left: 50%; bottom: 6px; width: 18px; height: 10px;
+    background: #444; border-radius: 4px; transform: translateX(-50%);
+  }
+  .sorteo-palanca-mango {
+    position: absolute; left: 50%; top: 0; width: 18px; height: 18px;
+    background: radial-gradient(circle at 35% 30%, #fff3c4, #ffd54f 60%, #c99a1f);
+    border-radius: 50%; transform: translate(-50%, 0);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.35);
+    transition: top 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .sorteo-palanca-mango.tirada { top: 76px; transition: top 0.15s ease-in; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🌿 JAR JAR GREEN</div>
+  <div id="tituloSorteoVivo" style="display:none;font-family:'Spectral',serif;font-weight:700;font-size:1.15rem;color:var(--verde-oscuro);margin-bottom:6px"></div>
+
+  <div id="premiosListaVivo"></div>
+
+  <div class="estado" id="estado">Conectando...</div>
+
+  <div id="resumenGanadorVivo" style="display:none;margin-top:6px">
+    <div style="background:linear-gradient(135deg,#2f6b3f,#4a9c5c);border-radius:16px;padding:26px 20px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:8px">🎉</div>
+      <div style="font-family:'Spectral',serif;font-weight:700;font-size:1.3rem;color:#fdf6e8" id="nombreGanadorResumen"></div>
+    </div>
+  </div>
+
+  <div id="resumenCompletoVivo" style="display:none;background:#fdf6e8;border:1px solid #e8dcc0;border-radius:16px;padding:22px 18px;color:#1f4d2b"></div>
+
+  <div class="sorteo-box" id="sorteoBoxVivo">
+    <div id="premioActualHeaderVivo" style="display:none;text-align:center;color:#fdf6e8;font-family:'Spectral',serif;font-weight:700;font-size:1rem;margin-bottom:10px"></div>
+    <div class="sorteo-luces">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="sorteo-fila-reel">
+      <div class="sorteo-flecha">▶</div>
+      <div class="sorteo-reel-wrap">
+        <div class="sorteo-reel-highlight"></div>
+        <div class="sorteo-reel" id="sorteoReel">
+          <div class="sorteo-reel-item">🎉</div>
+          <div class="sorteo-reel-item sorteo-reel-espera" id="textoEsperaSorteo">Esperando el sorteo</div>
+          <div class="sorteo-reel-item">🎉</div>
+        </div>
+      </div>
+      <div class="sorteo-flecha">◀</div>
+      <div class="sorteo-palanca">
+        <div class="sorteo-palanca-riel"></div>
+        <div class="sorteo-palanca-base"></div>
+        <div class="sorteo-palanca-mango" id="palancaMango"></div>
+      </div>
+    </div>
+  </div>
+  <div class="sorteo-participantes-grid" id="listaParticipantesVivo"></div>
+</div>
+
+<div id="lightboxSorteoVivo" onclick="cerrarLightboxSorteo()">
+  <img id="lightboxImgSorteo">
+</div>
+
+<script>
+const SUPABASE_URL = "https://saejzjhxarlbdmrgjeuc.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZWp6amh4YXJsYmRtcmdqZXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM1NTgsImV4cCI6MjA5Nzg5OTU1OH0.pG6hVqYmt2CSjxx5iHcz1Hm3DzNGScyP0P4SlP4Qxzo";
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const ITEM_H = 50;
+
+function celebrarGanadorSorteo(){
+  const colores = ['#ffd54f', '#2f6b3f', '#4a9c5c', '#fdf6e8', '#c99a1f'];
+  for (let i = 0; i < 45; i++) {
+    const conf = document.createElement('div');
+    conf.className = 'sorteo-confetti';
+    conf.style.left = Math.random() * 100 + 'vw';
+    conf.style.background = colores[Math.floor(Math.random() * colores.length)];
+    conf.style.animationDuration = (2.2 + Math.random() * 1.4) + 's';
+    conf.style.animationDelay = (Math.random() * 0.5) + 's';
+    document.body.appendChild(conf);
+    setTimeout(() => conf.remove(), 4200);
+  }
+}
+let intervaloEsperaSorteo = null;
+function iniciarAnimacionEspera(){
+  detenerAnimacionEspera();
+  let punto = 0;
+  intervaloEsperaSorteo = setInterval(() => {
+    const el = document.getElementById('textoEsperaSorteo');
+    if (!el) { detenerAnimacionEspera(); return; }
+    punto = (punto + 1) % 4;
+    el.textContent = 'Esperando el sorteo' + '.'.repeat(punto);
+  }, 500);
+}
+function detenerAnimacionEspera(){
+  if (intervaloEsperaSorteo) { clearInterval(intervaloEsperaSorteo); intervaloEsperaSorteo = null; }
+}
+let sorteoInicioEn = null;
+let intervaloCuentaInicioSorteo = null;
+function detenerCuentaInicioSorteo(){
+  if (intervaloCuentaInicioSorteo) { clearInterval(intervaloCuentaInicioSorteo); intervaloCuentaInicioSorteo = null; }
+}
+function iniciarEsperaOContador(){
+  detenerAnimacionEspera();
+  detenerCuentaInicioSorteo();
+  if (sorteoInicioEn && new Date(sorteoInicioEn) > new Date()) {
+    function actualizar(){
+      const el = document.getElementById('textoEsperaSorteo');
+      if (!el) { detenerCuentaInicioSorteo(); return; }
+      const restanteMs = new Date(sorteoInicioEn) - new Date();
+      if (restanteMs <= 0) {
+        detenerCuentaInicioSorteo();
+        iniciarAnimacionEspera();
+        return;
+      }
+      const totalSeg = Math.floor(restanteMs / 1000);
+      const h = Math.floor(totalSeg / 3600);
+      const m = Math.floor((totalSeg % 3600) / 60);
+      const s = totalSeg % 60;
+      const pad = n => String(n).padStart(2, "0");
+      el.textContent = `Empieza en ${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+    actualizar();
+    intervaloCuentaInicioSorteo = setInterval(actualizar, 1000);
+  } else {
+    iniciarAnimacionEspera();
+  }
+}
+function resetReelSorteoVivo(){
+  const reel = document.getElementById('sorteoReel');
+  if (!reel) return;
+  reel.style.transition = 'none';
+  reel.style.transform = 'translateY(0)';
+  reel.innerHTML = `
+    <div class="sorteo-reel-item">🎉</div>
+    <div class="sorteo-reel-item sorteo-reel-espera" id="textoEsperaSorteo">Esperando el sorteo</div>
+    <div class="sorteo-reel-item">🎉</div>`;
+  iniciarEsperaOContador();
+}
+function girarReelEnVivo(nombres, duracion, indexGanador, tituloPremio){
+  detenerAnimacionEspera();
+  const header = document.getElementById('premioActualHeaderVivo');
+  if (header) {
+    if (tituloPremio) { header.textContent = `🏆 Ganador ${tituloPremio}`; header.style.display = 'block'; }
+    else header.style.display = 'none';
+  }
+  const reel = document.getElementById('sorteoReel');
+  reel.style.transition = 'none';
+  reel.style.transform = 'translateY(0)';
+  reel.innerHTML = nombres.map(n => `<div class="sorteo-reel-item">${n}</div>`).join('');
+  void reel.offsetHeight;
+
+  const finalPos = -(ITEM_H * (indexGanador - 1));
+
+  requestAnimationFrame(() => {
+    reel.style.transition = `transform ${duracion}s cubic-bezier(0.22, 0.4, 0.15, 1)`;
+    reel.style.transform = `translateY(${finalPos}px)`;
+  });
+
+  setTimeout(() => {
+    const items = reel.querySelectorAll('.sorteo-reel-item');
+    items[indexGanador]?.classList.add('centro');
+    const estadoEl = document.getElementById('estado');
+    estadoEl.textContent = `🎉 ¡Ganó ${nombres[indexGanador]}!`;
+    estadoEl.style.fontSize = '1.5rem';
+    estadoEl.style.fontWeight = '800';
+    estadoEl.style.color = 'var(--verde-hoja, #2a7a3b)';
+    celebrarGanadorSorteo();
+  }, duracion * 1000 + 150);
+}
+
+const params = new URLSearchParams(location.search);
+const slugSorteo = params.get('s');
+
+function formatoWhatsapp(texto){
+  if (!texto) return "";
+  let resultado = texto
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*(\S(?:[^*]*\S)?)\*/g, "<strong>$1</strong>")
+    .replace(/_(\S(?:[^_]*\S)?)_/g, "<em>$1</em>")
+    .replace(/~(\S(?:[^~]*\S)?)~/g, "<s>$1</s>");
+  resultado = resultado.replace(/(https?:\/\/[^\s<]+)/g, (match, url, offset, str) => {
+    const antes = str.slice(0, offset);
+    const aberturasA = (antes.match(/<a /g) || []).length;
+    const cierresA = (antes.match(/<\/a>/g) || []).length;
+    if (aberturasA > cierresA) return match;
+    return `<a href="${url}" target="_blank" rel="noopener">${url}</a>`;
+  });
+  return resultado;
+}
+
+function mostrarPremioInfo(titulo, premios){
+  if (titulo) {
+    const tituloEl = document.getElementById('tituloSorteoVivo');
+    tituloEl.innerHTML = formatoWhatsapp(titulo);
+    tituloEl.style.display = 'block';
+  }
+  const cont = document.getElementById('premiosListaVivo');
+  if (Array.isArray(premios) && premios.length) {
+    cont.innerHTML = premios.map(p => `
+      <div class="premio-bloque-vivo">
+        ${p.titulo ? `<div class="premio-titulo-vivo">🎁 ${formatoWhatsapp(p.titulo)}</div>` : ''}
+        ${Array.isArray(p.imagenes) && p.imagenes.length ? `
+          <div class="sorteo-thumbs">
+            ${p.imagenes.map(url => `<img class="sorteo-thumb" src="${url}" onclick="abrirLightboxSorteo('${url.replace(/'/g,"\\'")}')">`).join('')}
+          </div>` : ''}
+      </div>`).join('');
+  }
+}
+function actualizarListaParticipantesVivo(nombresNuevos){
+  const cont = document.getElementById('listaParticipantesVivo');
+  const actuales = Array.from(cont.querySelectorAll('.sorteo-chip-vivo'));
+  const setNuevos = new Set(nombresNuevos);
+  actuales.forEach(chip => {
+    if (!setNuevos.has(chip.textContent)) {
+      chip.classList.add('sorteo-chip-vivo-removido');
+      setTimeout(() => chip.remove(), 400);
+    }
+  });
+  const textosActuales = new Set(actuales.map(c => c.textContent));
+  nombresNuevos.forEach(n => {
+    if (!textosActuales.has(n)) {
+      const span = document.createElement('span');
+      span.className = 'sorteo-chip-vivo';
+      span.textContent = n;
+      cont.appendChild(span);
+    }
+  });
+}
+function resetEstiloEstado(){
+  const el = document.getElementById('estado');
+  el.style.fontSize = '';
+  el.style.fontWeight = '';
+  el.style.color = '';
+}
+
+function abrirLightboxSorteo(url){
+  document.getElementById('lightboxImgSorteo').src = url;
+  document.getElementById('lightboxSorteoVivo').classList.add('active');
+}
+function cerrarLightboxSorteo(){
+  document.getElementById('lightboxSorteoVivo').classList.remove('active');
+}
+
+function mostrarVistaResumen(ganadorNombre, ganadores){
+  detenerAnimacionEspera();
+  document.getElementById('estado').style.display = 'none';
+  document.getElementById('sorteoBoxVivo').style.display = 'none';
+  document.getElementById('listaParticipantesVivo').style.display = 'none';
+  if (Array.isArray(ganadores) && ganadores.length) {
+    mostrarResumenCompletoVivo(ganadores);
+    return;
+  }
+  document.getElementById('nombreGanadorResumen').textContent = ganadorNombre ? `¡Ganó ${ganadorNombre}!` : 'Sorteo finalizado';
+  document.getElementById('resumenGanadorVivo').style.display = 'block';
+}
+function mostrarVistaEnVivo(){
+  document.getElementById('resumenGanadorVivo').style.display = 'none';
+  document.getElementById('resumenCompletoVivo').style.display = 'none';
+  const header = document.getElementById('premioActualHeaderVivo');
+  if (header) header.style.display = 'none';
+  document.getElementById('estado').style.display = '';
+  document.getElementById('sorteoBoxVivo').style.display = '';
+  document.getElementById('listaParticipantesVivo').style.display = '';
+  resetReelSorteoVivo();
+  resetEstiloEstado();
+  document.getElementById('estado').textContent = 'Conectado — esperando a que empiece el sorteo';
+}
+function mostrarResumenCompletoVivo(ganadores){
+  detenerAnimacionEspera();
+  document.getElementById('estado').style.display = 'none';
+  document.getElementById('sorteoBoxVivo').style.display = 'none';
+  document.getElementById('listaParticipantesVivo').style.display = 'none';
+  document.getElementById('resumenGanadorVivo').style.display = 'none';
+  const cont = document.getElementById('resumenCompletoVivo');
+  cont.innerHTML = `
+    <div style="font-weight:700;margin-bottom:8px;font-family:'Spectral',serif;font-size:1.15rem;text-align:center">🎉 ¡Sorteo completo!</div>
+    ${ganadores.map(g => `<div style="margin-bottom:4px;text-align:center">${g.titulo ? '🏆 ' + formatoWhatsapp(g.titulo) + ': ' : ''}<strong>${g.nombre}</strong></div>`).join('')}
+  `;
+  cont.style.display = 'block';
+}
+
+async function iniciarSorteoEnVivo(){
+  if (!slugSorteo) {
+    resetEstiloEstado();
+    document.getElementById('estado').textContent = 'Link inválido — pídele el link correcto a quien te lo compartió. 🌿';
+    document.getElementById('sorteoBoxVivo').style.display = 'none';
+    document.getElementById('listaParticipantesVivo').style.display = 'none';
+    return;
+  }
+  let fila = null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/sorteos_historial?slug=eq.${encodeURIComponent(slugSorteo)}&select=activo,finalizado,titulo,premios,ganador_nombre,ganadores,inicia_en,participantes_actuales`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    fila = Array.isArray(data) && data.length > 0 ? data[0] : null;
+  } catch (e) {}
+
+  if (!fila || fila.activo !== true) {
+    resetEstiloEstado();
+    document.getElementById('estado').textContent = 'Este sorteo ya no está disponible. 🌿';
+    document.getElementById('sorteoBoxVivo').style.display = 'none';
+    document.getElementById('listaParticipantesVivo').style.display = 'none';
+    return;
+  }
+
+  mostrarPremioInfo(fila.titulo, fila.premios);
+  sorteoInicioEn = fila.inicia_en || null;
+
+  if (fila.finalizado) {
+    mostrarVistaResumen(fila.ganador_nombre, fila.ganadores);
+  } else {
+    iniciarEsperaOContador();
+    if (Array.isArray(fila.participantes_actuales) && fila.participantes_actuales.length) {
+      actualizarListaParticipantesVivo(fila.participantes_actuales);
+    }
+  }
+
+  const canal = sbClient.channel('sorteo-vivo-' + slugSorteo);
+  canal
+    .on('broadcast', { event: 'girar' }, ({ payload }) => {
+      mostrarVistaEnVivo();
+      resetEstiloEstado();
+      document.getElementById('estado').textContent = '🎲 ¡Girando ahora!';
+      const mango = document.getElementById('palancaMango');
+      if (mango) {
+        mango.classList.add('tirada');
+        setTimeout(() => mango.classList.remove('tirada'), 350);
+      }
+      girarReelEnVivo(payload.nombres, payload.duracion, payload.indexGanador, payload.tituloPremio);
+    })
+    .on('broadcast', { event: 'participantes' }, ({ payload }) => {
+      actualizarListaParticipantesVivo(payload.nombres);
+      const reel = document.getElementById('sorteoReel');
+      const centro = reel?.querySelector('.sorteo-reel-item.centro');
+      if (centro) {
+        centro.classList.add('sorteo-reel-item-removido');
+        setTimeout(() => resetReelSorteoVivo(), 380);
+      }
+    })
+    .on('broadcast', { event: 'actualizar_info' }, ({ payload }) => {
+      sorteoInicioEn = payload.inicia_en || null;
+      mostrarVistaEnVivo();
+      mostrarPremioInfo(payload.titulo, payload.premios);
+    })
+    .on('broadcast', { event: 'finalizar' }, ({ payload }) => {
+      mostrarVistaResumen(payload.ganador_nombre, payload.ganadores);
+    })
+    .on('broadcast', { event: 'sorteo_completo' }, ({ payload }) => {
+      mostrarResumenCompletoVivo(payload.ganadores || []);
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED' && !fila.finalizado) {
+        resetEstiloEstado();
+  document.getElementById('estado').textContent = 'Conectado — esperando a que empiece el sorteo';
+      }
+    });
+}
+
+iniciarSorteoEnVivo();
+</script>
+</body>
+</html>
