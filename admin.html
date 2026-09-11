@@ -2961,11 +2961,13 @@ async function exportarReporteCupon(){
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) { showToast('Nadie ha usado este código todavía', 'error'); return; }
 
-    const encabezados = ['Fecha', 'Cliente', 'Email', 'WhatsApp', 'Producto', 'Cantidad', 'Precio unit.', 'Descuento aplicado', 'Estado'];
+    const encabezados = ['Fecha', 'Cliente', 'Email', 'WhatsApp', 'Producto', 'Cantidad', 'Precio unit.', 'Descuento aplicado', 'Monto pagado final', 'Estado'];
     const filas = data.map(r => [
       new Date(r.created_at).toLocaleString('es-PE', { timeZone: 'America/Lima' }),
       r.nombre || '', r.email || '', r.wsp || '', r.item_nombre || '',
-      r.cantidad, r.item_precio, r.descuento_codigo || 0, r.estado || ''
+      r.cantidad, r.item_precio, r.descuento_codigo || 0,
+      (r.cantidad * r.item_precio - (r.descuento_codigo || 0) - (r.descuento_canje || 0)).toFixed(2),
+      r.estado || ''
     ]);
     const csv = [encabezados, ...filas].map(fila => fila.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
