@@ -1105,6 +1105,23 @@
           </div>
           <div id="cuponCategoriasCont" style="display:none;flex-wrap:wrap;gap:10px 16px"></div>
         </div>
+        <div class="form-group">
+          <label>Uso por usuario</label>
+          <select id="cuponUsoUsuario">
+            <option value="unico">Una sola vez por persona</option>
+            <option value="multiple">Múltiples veces por persona</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Expiración</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="cuponExpiraModo" onchange="toggleDiasExpiracionCupon()" style="flex:1">
+              <option value="nunca">No expira</option>
+              <option value="dias">Expira en (días)</option>
+            </select>
+            <input type="number" id="cuponDiasExpiracion" min="1" placeholder="Ej: 30" style="width:90px;display:none">
+          </div>
+        </div>
       </div>
       <button class="btn-guardar" onclick="guardarCupon()">🎟️ Crear cupón</button>
     </div>
@@ -1129,10 +1146,12 @@
         <th>Descripción</th>
         <th style="width:110px">Descuento</th>
         <th>Aplica a</th>
+        <th style="width:90px">Uso</th>
+        <th style="width:100px">Vence</th>
         <th style="width:80px">Activo</th>
-        <th style="width:100px">Acciones</th>
+        <th style="width:140px">Acciones</th>
       </tr></thead>
-      <tbody id="tablaCupones"><tr class="empty-row"><td colspan="6">Cargando...</td></tr></tbody>
+      <tbody id="tablaCupones"><tr class="empty-row"><td colspan="8">Cargando...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2797,6 +2816,11 @@ function toggleCategoriasCupon(){
   document.getElementById('cuponCategoriasCont').style.display = todaLaTienda ? 'none' : 'flex';
 }
 
+function toggleDiasExpiracionCupon(){
+  const modo = document.getElementById('cuponExpiraModo').value;
+  document.getElementById('cuponDiasExpiracion').style.display = modo === 'dias' ? 'block' : 'none';
+}
+
 document.getElementById('cuponTipo')?.addEventListener('change', e => {
   document.getElementById('lblCuponValor').textContent = e.target.value === 'porcentaje' ? 'Valor (%)' : 'Valor (S/)';
 });
@@ -2808,17 +2832,28 @@ async function guardarCupon(){
   const valor = parseFloat(document.getElementById('cuponValor').value);
   const todaLaTienda = document.getElementById('cuponTodaLaTienda').checked;
   const categorias = todaLaTienda ? [] : Array.from(document.querySelectorAll('.cupon-categoria-check:checked')).map(c => c.value);
+  const uso_unico_por_usuario = document.getElementById('cuponUsoUsuario').value === 'unico';
+  const expiraModo = document.getElementById('cuponExpiraModo').value;
+  const diasExpiracion = parseInt(document.getElementById('cuponDiasExpiracion').value);
 
   if (!descripcion) return showToast('Ingresa la temática del descuento', 'error');
   if (!codigo) return showToast('Ingresa o genera un código', 'error');
   if (isNaN(valor) || valor <= 0) return showToast('Ingresa un valor de descuento válido', 'error');
   if (!todaLaTienda && !categorias.length) return showToast('Elige al menos una categoría, o marca "Toda la tienda"', 'error');
+  if (expiraModo === 'dias' && (isNaN(diasExpiracion) || diasExpiracion <= 0)) return showToast('Ingresa un número de días válido', 'error');
+
+  let fecha_expiracion = null;
+  if (expiraModo === 'dias') {
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() + diasExpiracion);
+    fecha_expiracion = fecha.toISOString();
+  }
 
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/codigos_descuento`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ codigo, descripcion, tipo, valor, categorias })
+      body: JSON.stringify({ codigo, descripcion, tipo, valor, categorias, uso_unico_por_usuario, fecha_expiracion })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -2829,7 +2864,11 @@ async function guardarCupon(){
     document.getElementById('cuponCodigo').value = '';
     document.getElementById('cuponValor').value = '';
     document.getElementById('cuponTodaLaTienda').checked = true;
+    document.getElementById('cuponUsoUsuario').value = 'unico';
+    document.getElementById('cuponExpiraModo').value = 'nunca';
+    document.getElementById('cuponDiasExpiracion').value = '';
     toggleCategoriasCupon();
+    toggleDiasExpiracionCupon();
     renderCupones();
     showToast(`Cupón ${codigo} creado 🎟️`, 'success');
   } catch (e) {
@@ -2848,7 +2887,7 @@ async function renderCupones(){
     });
     cuponesData = await res.json();
     if (!Array.isArray(cuponesData) || !cuponesData.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Todavía no has creado ningún cupón</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Todavía no has creado ningún cupón</td></tr>';
       document.getElementById('cuponReporteSelect').innerHTML = '<option value="">Sin cupones todavía</option>';
       return;
     }
@@ -2858,8 +2897,12 @@ async function renderCupones(){
         <td style="font-size:0.85rem">${c.descripcion}</td>
         <td>${c.tipo === 'porcentaje' ? c.valor + '%' : 'S/ ' + c.valor}</td>
         <td style="font-size:0.8rem">${c.categorias.length ? c.categorias.join(', ') : 'Toda la tienda'}</td>
+        <td style="font-size:0.78rem">${c.uso_unico_por_usuario ? '1 por persona' : 'Múltiple'}</td>
+        <td style="font-size:0.78rem">${c.fecha_expiracion ? new Date(c.fecha_expiracion).toLocaleDateString('es-PE') : 'Nunca'}</td>
         <td><span class="badge ${c.activo ? 'disponible' : 'agotado'}" style="cursor:pointer" onclick="toggleCuponActivo(${c.id}, ${c.activo})">${c.activo ? '✅ Sí' : '⏸️ No'}</span></td>
-        <td><button class="btn-sm danger" onclick="eliminarCupon(${c.id}, '${c.codigo}')">🗑️</button></td>
+        <td>
+          <button class="btn-sm" style="margin-bottom:4px" onclick="verUsuariosCupon(${c.id}, '${c.codigo}')">👥 Usuarios</button>
+          <button class="btn-sm danger" onclick="eliminarCupon(${c.id}, '${c.codigo}')">🗑️</button></td>
       </tr>`).join('');
 
     document.getElementById('cuponReporteSelect').innerHTML = cuponesData.map(c => `<option value="${c.codigo}">${c.codigo} — ${c.descripcion}</option>`).join('');
@@ -2884,6 +2927,27 @@ async function eliminarCupon(id, codigo){
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
   });
   renderCupones();
+}
+
+async function verUsuariosCupon(id, codigo){
+  document.getElementById('tituloUsuariosCupon').textContent = `Usuarios que usaron ${codigo}`;
+  document.getElementById('listaUsuariosCupon').innerHTML = 'Cargando...';
+  document.getElementById('modalUsuariosCupon').classList.add('active');
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/codigos_descuento_usos?codigo_id=eq.${id}&select=*&order=ultima_vez.desc`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
+  });
+  const data = await res.json();
+  const cont = document.getElementById('listaUsuariosCupon');
+  if (!Array.isArray(data) || !data.length) {
+    cont.innerHTML = '<p style="color:#999">Nadie ha usado (pagado) este código todavía.</p>';
+    return;
+  }
+  cont.innerHTML = data.map(u => `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #eee">
+      <span>${u.email}</span>
+      <span>${u.veces_usado > 1 ? `<strong>${u.veces_usado}x</strong>` : '✅'}</span>
+    </div>`).join('');
 }
 
 async function exportarReporteCupon(){
@@ -4518,6 +4582,15 @@ window.addEventListener("popstate", () => {
     <span class="nav-icon">🎟️</span>Cupones
   </button>
 </nav>
+<!-- MODAL USUARIOS QUE USARON UN CUPON -->
+<div class="modal-overlay" id="modalUsuariosCupon">
+  <div class="modal" style="max-width:500px">
+    <button type="button" class="modal-close-x" onclick="document.getElementById('modalUsuariosCupon').classList.remove('active')" title="Cerrar" aria-label="Cerrar">✕</button>
+    <h2 style="margin-top:0" id="tituloUsuariosCupon">Usuarios que usaron este código</h2>
+    <div id="listaUsuariosCupon" style="max-height:50vh;overflow-y:auto">Cargando...</div>
+  </div>
+</div>
+
 <!-- MODAL NUEVA RESERVA MANUAL -->
 <div class="modal-overlay" id="modalNuevaReserva">
   <div class="modal" style="position:relative">
