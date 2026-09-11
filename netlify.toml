@@ -51,3 +51,10 @@
   to = "/admin.html"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/cupones"
+  to = "/admin.html"
+  status = 200
+  force = true
+  
