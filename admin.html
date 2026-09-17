@@ -641,29 +641,6 @@
 
   <!-- TAB RESERVAS -->
   <div id="tab-reservas" style="display:none">
-    <div style="background:#f8f4ef;border-radius:12px;padding:14px 16px;margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleMigrarCliente()">
-        <div style="font-weight:700;color:var(--verde-oscuro)">🔀 Unificar cliente duplicado</div>
-        <span id="migrarClienteToggleIcono">▾</span>
-      </div>
-      <div id="migrarClienteCont" style="display:none;margin-top:12px">
-        <p style="font-size:0.8rem;color:var(--gris);margin:0 0 12px">
-          Úsalo cuando un cliente tiene 2 correos (ej: uno que le creaste manual, y el real con el que ahora entra a la web) — mueve todas sus reservas al correo correcto y recalcula su gasto/puntos.
-        </p>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Correo antiguo (a migrar)</label>
-            <input type="email" id="migrarEmailAntiguo" placeholder="Ej: jaqui@jjg.com">
-          </div>
-          <div class="form-group">
-            <label>Correo nuevo (real, va a prevalecer)</label>
-            <input type="email" id="migrarEmailNuevo" placeholder="Ej: j.quijandria.ch@gmail.com">
-          </div>
-        </div>
-        <button class="btn-sm primary" id="migrarBtnEjecutar" onclick="ejecutarMigracionCliente()">🔀 Migrar</button>
-        <div id="migrarResultado" style="margin-top:12px"></div>
-      </div>
-    </div>
     <div class="stats-row" style="margin-bottom:8px">
       <div class="stat-card warn"><div class="stat-card-num" id="rPendValor">—</div><div class="stat-card-label">S/ pendiente</div></div>
       <div class="stat-card" style="border-left:3px solid var(--verde-hoja)"><div class="stat-card-num" id="rPagValor" style="color:var(--verde-hoja)">—</div><div class="stat-card-label">S/ cobrado</div></div>
@@ -744,6 +721,29 @@
 
   <!-- TAB CLIENTES -->
   <div id="tab-clientes" style="display:none">
+    <div style="background:#f8f4ef;border-radius:12px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleMigrarCliente()">
+        <div style="font-weight:700;color:var(--verde-oscuro)">🔀 Unificar cliente duplicado</div>
+        <span id="migrarClienteToggleIcono">▾</span>
+      </div>
+      <div id="migrarClienteCont" style="display:none;margin-top:12px">
+        <p style="font-size:0.8rem;color:var(--gris);margin:0 0 12px">
+          Úsalo cuando un cliente tiene 2 correos (ej: uno que le creaste manual, y el real con el que ahora entra a la web) — mueve todas sus reservas al correo correcto y recalcula su gasto/puntos.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Correo antiguo (a migrar)</label>
+            <input type="email" id="migrarEmailAntiguo" placeholder="Ej: jaqui@jjg.com">
+          </div>
+          <div class="form-group">
+            <label>Correo nuevo (real, va a prevalecer)</label>
+            <input type="email" id="migrarEmailNuevo" placeholder="Ej: j.quijandria.ch@gmail.com">
+          </div>
+        </div>
+        <button class="btn-sm primary" id="migrarBtnEjecutar" onclick="ejecutarMigracionCliente()">🔀 Migrar</button>
+        <div id="migrarResultado" style="margin-top:12px"></div>
+      </div>
+    </div>
     <div class="page-header">
       <div class="page-title">Clientes — JarJar Puntos</div>
       <button class="btn-refresh" onclick="renderClientes(this)" title="Actualizar">🔄</button>
@@ -1733,7 +1733,7 @@ async function ejecutarMigracionCliente(){
       </div>` : ''}
     `;
 
-    await renderReservas();
+    await renderClientes();
   } catch (e) {
     resEl.innerHTML = '<p style="color:#c0392b;font-size:0.85rem">Error de conexión durante la migración.</p>';
   }
