@@ -1825,8 +1825,60 @@ async function abrirModalNuevaReserva(){
   document.getElementById('nrNota').value = '';
   document.getElementById('nrDisponible').textContent = '';
   document.getElementById('nrCantidadLabel').textContent = 'Cantidad';
+  nrProductosAgregados = [];
+  renderListaProductosNr();
   document.getElementById('modalNuevaReserva').classList.add('active');
   await cargarNrClientes();
+}
+
+let nrProductosAgregados = [];
+
+function agregarProductoNr(){
+  const sel = document.getElementById('nrItem');
+  const itemId = parseInt(sel.value);
+  const cantidad = parseInt(document.getElementById('nrCantidad').value);
+
+  if (!itemId) return showToast('Selecciona un producto', 'error');
+  if (!cantidad || cantidad < 1) return showToast('Cantidad inválida', 'error');
+
+  const item = items.find(i => i.id === itemId);
+  const yaAgregado = nrProductosAgregados.find(p => p.itemId === itemId);
+  if (yaAgregado) {
+    yaAgregado.cantidad += cantidad;
+  } else {
+    nrProductosAgregados.push({ itemId, nombre: item?.nombre || '—', cantidad });
+  }
+
+  sel.value = '';
+  document.getElementById('nrCantidad').value = '1';
+  document.getElementById('nrCantidad').disabled = true;
+  document.getElementById('nrDisponible').textContent = '';
+  renderListaProductosNr();
+}
+
+function quitarProductoNr(index){
+  nrProductosAgregados.splice(index, 1);
+  renderListaProductosNr();
+}
+
+function renderListaProductosNr(){
+  const wrap = document.getElementById('nrListaProductosWrap');
+  const cont = document.getElementById('nrListaProductos');
+  const btn = document.getElementById('nrBtnGuardar');
+
+  if (!nrProductosAgregados.length) {
+    wrap.style.display = 'none';
+    btn.textContent = '✅ Crear reserva';
+    return;
+  }
+  wrap.style.display = 'block';
+  cont.innerHTML = nrProductosAgregados.map((p, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#f8f4ef;border-radius:8px;padding:8px 12px;font-size:0.85rem">
+      <span>${p.cantidad} × ${p.nombre}</span>
+      <button type="button" class="btn-sm danger" style="padding:2px 8px" onclick="quitarProductoNr(${i})">✕</button>
+    </div>`).join('');
+  const totalProductos = nrProductosAgregados.reduce((a, p) => a + p.cantidad, 0);
+  btn.textContent = `✅ Crear reserva (${totalProductos} producto${totalProductos === 1 ? '' : 's'})`;
 }
 
 async function cargarNrClientes(){
@@ -1918,8 +1970,16 @@ function actualizarNrDisponible(){
   }
 }
 async function crearReservaManual(){
-  const itemId = parseInt(document.getElementById('nrItem').value);
-  const cantidad = parseInt(document.getElementById('nrCantidad').value);
+  // Si no agregaron nada a la lista pero sí eligieron un producto directo,
+  // lo tomamos como el único producto (para no forzar el botón "Agregar"
+  // cuando es solo 1 producto).
+  let productos = [...nrProductosAgregados];
+  if (!productos.length) {
+    const itemId = parseInt(document.getElementById('nrItem').value);
+    const cantidad = parseInt(document.getElementById('nrCantidad').value);
+    if (itemId && cantidad > 0) productos.push({ itemId, cantidad });
+  }
+
   const nombre = document.getElementById('nrNombre').value.trim();
   const wspNumero = document.getElementById('nrWsp').value.trim().replace(/\D/g, '');
   const wspCodigo = document.getElementById('nrPaisWsp').value;
@@ -1927,15 +1987,14 @@ async function crearReservaManual(){
   let email = document.getElementById('nrEmail').value.trim() || null;
   const nota = document.getElementById('nrNota').value.trim() || null;
 
-  if (!itemId) return showToast('Selecciona un producto', 'error');
-  if (!cantidad || cantidad < 1) return showToast('Cantidad inválida', 'error');
+  if (!productos.length) return showToast('Agrega al menos un producto', 'error');
   if (!nombre) return showToast('Ingresa el nombre del cliente', 'error');
   if (!wsp) return showToast('Ingresa el WhatsApp del cliente', 'error');
 
   const btn = document.getElementById('nrBtnGuardar');
   btn.disabled = true; btn.textContent = 'Creando...';
 
-  const intentarCrear = async (emailAEnviar) => fetch(`${SUPABASE_URL}/rest/v1/rpc/crear_reserva`, {
+  const intentarCrear = async (itemId, cantidad, emailAEnviar) => fetch(`${SUPABASE_URL}/rest/v1/rpc/crear_reserva`, {
     method: 'POST',
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1951,43 +2010,59 @@ async function crearReservaManual(){
   });
 
   try {
-    let rpcRes = await intentarCrear(email);
-
-    // Si la base de datos exige email (columna NOT NULL) y mandamos null,
-    // Postgres devuelve el código 23502 — ahí y solo ahí generamos un email
-    // interno de respaldo y reintentamos, en vez de usarlo siempre por defecto.
-    if (!rpcRes.ok && !email) {
-      const errBody = await rpcRes.clone().json().catch(() => ({}));
-      if (errBody?.code === '23502' || /null value in column "?email"?/i.test(errBody?.message || '')) {
-        email = `manual-${wsp.replace(/\D/g,'')}-${Date.now()}@sin-email.jarjargreen.com`;
-        rpcRes = await intentarCrear(email);
+    // Si no hay email, generamos uno interno de respaldo UNA sola vez, y lo
+    // reusamos para todos los productos de esta misma reserva (para que
+    // queden agrupados bajo el mismo cliente, no cada uno con un email distinto).
+    if (!email) {
+      const primerIntento = await intentarCrear(productos[0].itemId, productos[0].cantidad, null);
+      if (!primerIntento.ok) {
+        const errBody = await primerIntento.clone().json().catch(() => ({}));
+        if (errBody?.code === '23502' || /null value in column "?email"?/i.test(errBody?.message || '')) {
+          email = `manual-${wsp.replace(/\D/g,'')}-${Date.now()}@sin-email.jarjargreen.com`;
+        } else {
+          const msg = errBody?.message || '';
+          if (msg.startsWith('STOCK_INSUFICIENTE')) {
+            const disp = parseInt(msg.split('|')[1]) || 0;
+            showToast(`Stock insuficiente en "${productos[0].nombre || ''}" — solo quedan ${disp} disponibles`, 'error');
+          } else {
+            showToast('Error al crear la reserva', 'error');
+          }
+          btn.disabled = false; renderListaProductosNr();
+          return;
+        }
+      } else {
+        productos = productos.slice(1); // el primero ya se creó exitosamente sin email
       }
     }
 
-    if (!rpcRes.ok) {
-      const errBody = await rpcRes.json().catch(() => ({}));
-      const msg = errBody?.message || '';
-      if (msg.startsWith('STOCK_INSUFICIENTE')) {
-        const disp = parseInt(msg.split('|')[1]) || 0;
-        showToast(`Stock insuficiente — solo quedan ${disp} disponibles`, 'error');
-      } else {
-        showToast('Error al crear la reserva', 'error');
+    for (const p of productos) {
+      const rpcRes = await intentarCrear(p.itemId, p.cantidad, email);
+      if (!rpcRes.ok) {
+        const errBody = await rpcRes.json().catch(() => ({}));
+        const msg = errBody?.message || '';
+        if (msg.startsWith('STOCK_INSUFICIENTE')) {
+          const disp = parseInt(msg.split('|')[1]) || 0;
+          showToast(`Stock insuficiente en "${p.nombre || ''}" — solo quedan ${disp} disponibles`, 'error');
+        } else {
+          showToast(`Error al crear la reserva de "${p.nombre || ''}"`, 'error');
+        }
+        btn.disabled = false; renderListaProductosNr();
+        return;
       }
-      btn.disabled = false; btn.textContent = '✅ Crear reserva';
-      return;
     }
 
     if (nota) {
       try {
-        const buscar = await fetch(`${SUPABASE_URL}/rest/v1/reservas?item_id=eq.${itemId}&wsp=eq.${wsp}&order=created_at.desc&limit=1&select=id,nota_admin`, {
+        const buscar = await fetch(`${SUPABASE_URL}/rest/v1/reservas?wsp=eq.${wsp}&order=created_at.desc&limit=${productos.length + 1}&select=id,item_id,nota_admin,created_at`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
         });
         const filas = await buscar.json();
-        if (filas[0]?.id) {
-          await fetch(`${SUPABASE_URL}/rest/v1/reservas?id=eq.${filas[0].id}`, {
+        // Le agregamos la nota a todas las reservas recién creadas de este pedido
+        for (const fila of filas.slice(0, productos.length + (email ? 0 : 1))) {
+          await fetch(`${SUPABASE_URL}/rest/v1/reservas?id=eq.${fila.id}`, {
             method: 'PATCH',
             headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-            body: JSON.stringify({ nota_admin: conLogNota(filas[0].nota_admin, `📝 ${nota}`) })
+            body: JSON.stringify({ nota_admin: conLogNota(fila.nota_admin, `📝 ${nota}`) })
           });
         }
       } catch (e) {}
@@ -2000,7 +2075,8 @@ async function crearReservaManual(){
   } catch (e) {
     showToast('Error de conexión', 'error');
   }
-  btn.disabled = false; btn.textContent = '✅ Crear reserva';
+  btn.disabled = false;
+  renderListaProductosNr();
 }
 async function editarWspGrupo(ids, wspActual){
   const nuevo = prompt('Número de WhatsApp del cliente (con código de país incluido, sin +, ej: 51987654321 — es necesario para que el link de WhatsApp funcione):', wspActual || '');
@@ -4618,6 +4694,13 @@ window.addEventListener("popstate", () => {
       <div class="form-group">
         <label id="nrCantidadLabel">Cantidad</label>
         <input type="number" id="nrCantidad" min="1" value="1" disabled oninput="clamparNrCantidad()">
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end">
+        <button type="button" class="btn-sm" style="width:100%" onclick="agregarProductoNr()">➕ Agregar producto a la reserva</button>
+      </div>
+      <div class="form-group full" id="nrListaProductosWrap" style="display:none">
+        <label>Productos en esta reserva</label>
+        <div id="nrListaProductos" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
       <div class="form-group">
         <label>Nombre del cliente</label>
