@@ -641,6 +641,29 @@
 
   <!-- TAB RESERVAS -->
   <div id="tab-reservas" style="display:none">
+    <div style="background:#f8f4ef;border-radius:12px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleMigrarCliente()">
+        <div style="font-weight:700;color:var(--verde-oscuro)">🔀 Unificar cliente duplicado</div>
+        <span id="migrarClienteToggleIcono">▾</span>
+      </div>
+      <div id="migrarClienteCont" style="display:none;margin-top:12px">
+        <p style="font-size:0.8rem;color:var(--gris);margin:0 0 12px">
+          Úsalo cuando un cliente tiene 2 correos (ej: uno que le creaste manual, y el real con el que ahora entra a la web) — mueve todas sus reservas al correo correcto y recalcula su gasto/puntos.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Correo antiguo (a migrar)</label>
+            <input type="email" id="migrarEmailAntiguo" placeholder="Ej: jaqui@jjg.com">
+          </div>
+          <div class="form-group">
+            <label>Correo nuevo (real, va a prevalecer)</label>
+            <input type="email" id="migrarEmailNuevo" placeholder="Ej: j.quijandria.ch@gmail.com">
+          </div>
+        </div>
+        <button class="btn-sm primary" id="migrarBtnEjecutar" onclick="ejecutarMigracionCliente()">🔀 Migrar</button>
+        <div id="migrarResultado" style="margin-top:12px"></div>
+      </div>
+    </div>
     <div class="stats-row" style="margin-bottom:8px">
       <div class="stat-card warn"><div class="stat-card-num" id="rPendValor">—</div><div class="stat-card-label">S/ pendiente</div></div>
       <div class="stat-card" style="border-left:3px solid var(--verde-hoja)"><div class="stat-card-num" id="rPagValor" style="color:var(--verde-hoja)">—</div><div class="stat-card-label">S/ cobrado</div></div>
@@ -1635,7 +1658,105 @@ async function marcarSeleccionadosPorIds(todosIds, nuevoEstado){
   } catch (e) {
     showToast('Error al actualizar reservas', 'error');
   }
-}async function refreshCatalogo(e){e.classList.add("spinning"),await cargarItems();let t=null;async function a(){try{const e=await fetch(`${SUPABASE_URL}/rest/v1/reservas?select=id&order=id.desc&limit=1`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`}}),a=await e.json();if(!a.length)return;const r=a[0].id;if(null===t)return void(t=r);if(r>t){t=r;const e=document.getElementById("reservasNotif");e&&e.classList.add("visible");try{const e=new(window.AudioContext||window.webkitAudioContext),t=e.createOscillator(),a=e.createGain();t.connect(a),a.connect(e.destination),t.frequency.value=880,a.gain.value=.1,t.start(),t.stop(e.currentTime+.15),setTimeout(()=>{t.frequency.value=1100,t.start(),t.stop(e.currentTime+.15)},200)}catch(e){}showToast("🔔 Nueva reserva recibida!","success")}}catch(e){}}setInterval(a,3e4),a(),setTimeout(()=>e.classList.remove("spinning"),600),showToast("Catálogo actualizado 🌿","success")}async function refreshReservas(e){e.classList.add("spinning"),await renderReservas(),setTimeout(()=>e.classList.remove("spinning"),600),showToast("Reservas actualizadas 🌿","success")}async function archivarTodosPagados(){const e=reservasData.filter(e=>"enviado"===e.estado&&!e.archivado);if(e.length){if(confirm(`¿Archivar todas las reservas enviadas (${e.length})? Pasarán al historial.`))try{await Promise.all(e.map(e=>{const t=conLogNota(e.nota_admin,"📦 Archivada (envío completado)");return fetch(`${SUPABASE_URL}/rest/v1/reservas?id=eq.${e.id}`,{method:"PATCH",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({archivado:!0,nota_admin:t})})}));const t=await fetch(`${SUPABASE_URL}/rest/v1/reservas?select=*&order=created_at.desc`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`}});reservasData=await t.json(),recalcularReservasPorItem(),renderReservas(),showToast(`${e.length} reserva(s) archivadas 📦`,"success")}catch(e){showToast("Error al archivar","error")}}else showToast("No hay reservas enviadas para archivar","error")}async function archivarReservas(e){if(confirm("¿Archivar esta reserva? Pasará al historial.")){false;try{await Promise.all(e.map(e=>{const t=reservasData.find(t=>t.id===e),a=conLogNota(t?.nota_admin,"📦 Archivada");return fetch(`${SUPABASE_URL}/rest/v1/reservas?id=eq.${e}`,{method:"PATCH",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({archivado:!0,nota_admin:a})})}));const t=await fetch(`${SUPABASE_URL}/rest/v1/reservas?select=*&order=created_at.desc`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`}});reservasData=await t.json(),recalcularReservasPorItem(),renderReservas(),showToast("Reserva archivada 📦","success")}catch(e){showToast("Error al archivar","error")}}}function renderArchivadas(){let e=reservasData.filter(e=>!0===e.archivado||"true"===e.archivado);const busqArch=(document.getElementById("buscarReservas")?.value||"").toLowerCase().trim();busqArch&&(e=e.filter(x=>(x.nombre||"").toLowerCase().includes(busqArch)||(x.wsp||"").includes(busqArch)||(x.email||"").toLowerCase().includes(busqArch)||(x.item_nombre||"").toLowerCase().includes(busqArch)));const t=document.getElementById("archivadasSection"),a=document.getElementById("tablaArchivadas"),r=document.getElementById("archivadasCount");if(!e.length)return void(t.style.display="none");t.style.display="",r.textContent=`${e.length} reserva(s)`;const o={};e.forEach(e=>{const t=e.email||e.wsp||e.nombre;o[t]||(o[t]={nombre:e.nombre,email:e.email,wsp:e.wsp,reservas:[]}),o[t].reservas.push(e)});
+}async function refreshCatalogo(e){e.classList.add("spinning"),await cargarItems();let t=null;async function a(){try{const e=await fetch(`${SUPABASE_URL}/rest/v1/reservas?select=id&order=id.desc&limit=1`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`}}),a=await e.json();if(!a.length)return;const r=a[0].id;if(null===t)return void(t=r);if(r>t){t=r;const e=document.getElementById("reservasNotif");e&&e.classList.add("visible");try{const e=new(window.AudioContext||window.webkitAudioContext),t=e.createOscillator(),a=e.createGain();t.connect(a),a.connect(e.destination),t.frequency.value=880,a.gain.value=.1,t.start(),t.stop(e.currentTime+.15),setTimeout(()=>{t.frequency.value=1100,t.start(),t.stop(e.currentTime+.15)},200)}catch(e){}showToast("🔔 Nueva reserva recibida!","success")}}catch(e){}}setInterval(a,3e4),a(),setTimeout(()=>e.classList.remove("spinning"),600),showToast("Catálogo actualizado 🌿","success")}async function refreshReservas(e){e.classList.add("spinning"),await renderReservas(),setTimeout(()=>e.classList.remove("spinning"),600),showToast("Reservas actualizadas 🌿","success")}
+function toggleMigrarCliente(){
+  const cont = document.getElementById('migrarClienteCont');
+  const icono = document.getElementById('migrarClienteToggleIcono');
+  const abierto = cont.style.display !== 'none';
+  cont.style.display = abierto ? 'none' : 'block';
+  icono.textContent = abierto ? '▾' : '▴';
+}
+
+let migrarEmailAntiguoConfirmado = null;
+
+async function ejecutarMigracionCliente(){
+  const emailAntiguo = document.getElementById('migrarEmailAntiguo').value.trim().toLowerCase();
+  const emailNuevo = document.getElementById('migrarEmailNuevo').value.trim().toLowerCase();
+  const resEl = document.getElementById('migrarResultado');
+  const btn = document.getElementById('migrarBtnEjecutar');
+
+  if (!emailAntiguo || !emailNuevo) { resEl.innerHTML = '<p style="color:#c0392b;font-size:0.85rem">Completa ambos correos.</p>'; return; }
+  if (emailAntiguo === emailNuevo) { resEl.innerHTML = '<p style="color:#c0392b;font-size:0.85rem">Los 2 correos deben ser distintos.</p>'; return; }
+
+  btn.disabled = true;
+  resEl.innerHTML = '<p style="font-size:0.85rem;color:var(--gris)">Migrando...</p>';
+
+  try {
+    // 1. Movemos las reservas del correo antiguo al nuevo
+    const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/reservas?email=eq.${encodeURIComponent(emailAntiguo)}`, {
+      method: 'PATCH',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      body: JSON.stringify({ email: emailNuevo })
+    });
+    if (!patchRes.ok) { resEl.innerHTML = '<p style="color:#c0392b;font-size:0.85rem">Error al mover las reservas.</p>'; btn.disabled = false; return; }
+    const reservasMovidas = await patchRes.json();
+
+    if (!reservasMovidas.length) {
+      resEl.innerHTML = `<p style="color:#c0392b;font-size:0.85rem">No se encontró ninguna reserva con el correo "${emailAntiguo}".</p>`;
+      btn.disabled = false;
+      return;
+    }
+
+    // 2. Recalculamos gasto y puntos del correo nuevo, ya con todo junto
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/jjg_recalcular_puntos_usuario`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_email: emailNuevo, p_motivo: `Unificación de registro manual (${emailAntiguo})` })
+    });
+
+    // 3. Traemos el resultado final del correo nuevo
+    const usuarioRes = await fetch(`${SUPABASE_URL}/rest/v1/usuarios?email=eq.${encodeURIComponent(emailNuevo)}&select=nombre,gasto_total,puntos`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
+    });
+    const usuarioData = (await usuarioRes.json())[0] || {};
+
+    // 4. Revisamos si queda un registro de usuario "huérfano" con el correo antiguo
+    const antiguoRes = await fetch(`${SUPABASE_URL}/rest/v1/usuarios?email=eq.${encodeURIComponent(emailAntiguo)}&select=email`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
+    });
+    const antiguoExiste = (await antiguoRes.json()).length > 0;
+
+    migrarEmailAntiguoConfirmado = emailAntiguo;
+
+    resEl.innerHTML = `
+      <div style="background:#e8f5e9;border-radius:8px;padding:12px 14px;font-size:0.85rem">
+        <div style="font-weight:700;color:#2e7d32;margin-bottom:6px">✅ Migración completada</div>
+        <div>📦 Reservas movidas: <strong>${reservasMovidas.length}</strong></div>
+        <div>👤 Nombre: <strong>${usuarioData.nombre || '—'}</strong></div>
+        <div>💰 Gasto total: <strong>S/ ${usuarioData.gasto_total ?? 0}</strong></div>
+        <div>🌿 JarJar Puntos: <strong>${usuarioData.puntos ?? 0}</strong></div>
+      </div>
+      ${antiguoExiste ? `
+      <div style="margin-top:10px">
+        <p style="font-size:0.78rem;color:var(--gris);margin:0 0 6px">Revisa que los datos de arriba se vean correctos antes de continuar.</p>
+        <button class="btn-sm danger" onclick="eliminarUsuarioAntiguoMigracion()">🗑️ Eliminar registro de usuario antiguo (${emailAntiguo})</button>
+      </div>` : ''}
+    `;
+
+    await renderReservas();
+  } catch (e) {
+    resEl.innerHTML = '<p style="color:#c0392b;font-size:0.85rem">Error de conexión durante la migración.</p>';
+  }
+  btn.disabled = false;
+}
+
+async function eliminarUsuarioAntiguoMigracion(){
+  if (!migrarEmailAntiguoConfirmado) return;
+  if (!confirm(`¿Eliminar el registro de usuario de "${migrarEmailAntiguoConfirmado}"? Sus reservas ya fueron movidas, esto solo borra el registro sobrante.`)) return;
+
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/usuarios?email=eq.${encodeURIComponent(migrarEmailAntiguoConfirmado)}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
+    });
+    showToast('Usuario antiguo eliminado ✅', 'success');
+    document.getElementById('migrarResultado').innerHTML += '<p style="color:#2e7d32;font-size:0.8rem;margin-top:8px">✅ Registro antiguo eliminado.</p>';
+    migrarEmailAntiguoConfirmado = null;
+  } catch (e) {
+    showToast('Error al eliminar', 'error');
+  }
+}
+async function archivarTodosPagados(){const e=reservasData.filter(e=>"enviado"===e.estado&&!e.archivado);if(e.length){if(confirm(`¿Archivar todas las reservas enviadas (${e.length})? Pasarán al historial.`))try{await Promise.all(e.map(e=>{const t=conLogNota(e.nota_admin,"📦 Archivada (envío completado)");return fetch(`${SUPABASE_URL}/rest/v1/reservas?id=eq.${e.id}`,{method:"PATCH",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({archivado:!0,nota_admin:t})})}));const t=await fetch(`${SUPABASE_URL}/rest/v1/reservas?select=*&order=created_at.desc`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`}});reservasData=await t.json(),recalcularReservasPorItem(),renderReservas(),showToast(`${e.length} reserva(s) archivadas 📦`,"success")}catch(e){showToast("Error al archivar","error")}}else showToast("No hay reservas enviadas para archivar","error")}async function archivarReservas(e){if(confirm("¿Archivar esta reserva? Pasará al historial.")){false;try{await Promise.all(e.map(e=>{const t=reservasData.find(t=>t.id===e),a=conLogNota(t?.nota_admin,"📦 Archivada");return fetch(`${SUPABASE_URL}/rest/v1/reservas?id=eq.${e}`,{method:"PATCH",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({archivado:!0,nota_admin:a})})}));const t=await fetch(`${SUPABASE_URL}/rest/v1/reservas?select=*&order=created_at.desc`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`}});reservasData=await t.json(),recalcularReservasPorItem(),renderReservas(),showToast("Reserva archivada 📦","success")}catch(e){showToast("Error al archivar","error")}}}function renderArchivadas(){let e=reservasData.filter(e=>!0===e.archivado||"true"===e.archivado);const busqArch=(document.getElementById("buscarReservas")?.value||"").toLowerCase().trim();busqArch&&(e=e.filter(x=>(x.nombre||"").toLowerCase().includes(busqArch)||(x.wsp||"").includes(busqArch)||(x.email||"").toLowerCase().includes(busqArch)||(x.item_nombre||"").toLowerCase().includes(busqArch)));const t=document.getElementById("archivadasSection"),a=document.getElementById("tablaArchivadas"),r=document.getElementById("archivadasCount");if(!e.length)return void(t.style.display="none");t.style.display="",r.textContent=`${e.length} reserva(s)`;const o={};e.forEach(e=>{const t=e.email||e.wsp||e.nombre;o[t]||(o[t]={nombre:e.nombre,email:e.email,wsp:e.wsp,reservas:[]}),o[t].reservas.push(e)});
   const fechaOrden=e=>new Date(e.updated_at||e.created_at).getTime();
   Object.values(o).forEach(e=>{e.reservas.sort((a,b)=>fechaOrden(b)-fechaOrden(a))});
   const gruposOrdenados=Object.values(o).sort((a,b)=>Math.max(...b.reservas.map(fechaOrden))-Math.max(...a.reservas.map(fechaOrden)));
