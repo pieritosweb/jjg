@@ -2707,6 +2707,21 @@ async function guardarEdicionRespuestaReto(){
   }
 }
 
+async function eliminarRespuestaReto(respuestaId, retoId){
+  if (!confirm('¿Eliminar esta entrada? No se puede deshacer.')) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/retos_respuestas?id=eq.${respuestaId}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
+    });
+    if (!res.ok) { showToast('Error al eliminar', 'error'); return; }
+    showToast('Entrada eliminada ✅', 'success');
+    await verInscritosReto(retoId);
+  } catch (e) {
+    showToast('Error de conexión', 'error');
+  }
+}
+
 function exportarRespuestasCSV(){
   if (!exportModalData || !exportModalData.filas.length) { showToast('No hay respuestas para exportar todavía', 'error'); return; }
   const { titulo, tipo, preguntas, filas } = exportModalData;
@@ -2789,7 +2804,10 @@ async function verInscritosReto(retoId){
             return `<td style="font-size:0.8rem;white-space:normal;word-break:break-word;max-width:260px;vertical-align:top">${contenido || '<span style="color:#ccc">—</span>'}</td>`;
           }).join('')}
           <td style="font-size:0.75rem;color:var(--gris)">${new Date(r.created_at).toLocaleString('es-PE', { timeZone: 'America/Lima' })}</td>
-          <td><button class="btn-sm" style="font-size:0.7rem;padding:3px 8px" onclick="abrirEdicionRespuestaReto(${r.id})">✏️ Editar</button></td>
+          <td>
+            <button class="btn-sm" style="font-size:0.7rem;padding:3px 8px" onclick="abrirEdicionRespuestaReto(${r.id})">✏️ Editar</button>
+            <button class="btn-sm danger" style="font-size:0.7rem;padding:3px 8px;margin-top:4px" onclick="eliminarRespuestaReto(${r.id}, ${retoId})">🗑️ Eliminar</button>
+          </td>
         </tr>`).join('');
     } catch (e) {
       tbody.innerHTML = `<tr class="empty-row"><td colspan="${colCount}">Error al cargar respuestas</td></tr>`;

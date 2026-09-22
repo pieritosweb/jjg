@@ -454,7 +454,28 @@ function renderHistorialItemReto(fila){
     <div class="historial-fecha">${fecha}</div>
     <div class="historial-campos">${campos}</div>
     <button type="button" class="btn-secundario" style="margin-top:8px;font-size:0.8rem;padding:6px 12px" onclick="abrirEdicionRespuestaUsuario(${fila.id})">✏️ Editar esta entrada</button>
+    <button type="button" class="btn-secundario" style="margin-top:6px;font-size:0.8rem;padding:6px 12px;color:#c0392b;border-color:#c0392b" onclick="eliminarRespuestaUsuario(${fila.id})">🗑️ Eliminar esta entrada</button>
   </div>`;
+}
+
+async function eliminarRespuestaUsuario(respuestaId){
+  if (!confirm("¿Eliminar esta entrada? No se puede deshacer.")) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}rest/v1/retos_respuestas?id=eq.${respuestaId}&email=eq.${encodeURIComponent(usuarioActual.email)}`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${usuarioActual.access_token || SUPABASE_KEY}`, Prefer: "return=representation" }
+    });
+    if (!res.ok) throw new Error();
+    const filasEliminadas = await res.json();
+    if (!Array.isArray(filasEliminadas) || filasEliminadas.length === 0) {
+      alert("No se pudo eliminar: esta entrada ya no coincide con tu cuenta. Recarga la página e intenta de nuevo.");
+      return;
+    }
+    historialRetoCache = historialRetoCache.filter(f => f.id !== respuestaId);
+    pintarHistorialReto(historialRetoCache);
+  } catch (e) {
+    alert("No se pudo eliminar, intenta de nuevo.");
+  }
 }
 
 function abrirEdicionRespuestaUsuario(respuestaId){
