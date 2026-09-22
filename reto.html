@@ -302,35 +302,42 @@ function guardarWspInicial(){
   init();
 }
 
-function renderCampoPregunta(p, idx){
+function renderCampoPregunta(p, idx, valorExistente){
   const nombreCampo = `preg_${idx}`;
   const marcaReq = p.requerido ? ' *' : '';
   if (p.tipo === "texto") {
-    return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label><input type="text" id="${nombreCampo}"></div>`;
+    const v = (typeof valorExistente === "string" ? valorExistente : "").replace(/"/g, "&quot;");
+    return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label><input type="text" id="${nombreCampo}" value="${v}"></div>`;
   }
   if (p.tipo === "parrafo") {
-    return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label><textarea id="${nombreCampo}"></textarea></div>`;
+    const v = typeof valorExistente === "string" ? valorExistente : "";
+    return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label><textarea id="${nombreCampo}">${v}</textarea></div>`;
   }
   if (p.tipo === "select") {
-    return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label><select id="${nombreCampo}"><option value="">Selecciona...</option>${(p.opciones||[]).map(o=>`<option value="${o}">${o}</option>`).join("")}</select></div>`;
+    return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label><select id="${nombreCampo}"><option value="">Selecciona...</option>${(p.opciones||[]).map(o=>`<option value="${o}" ${o===valorExistente?"selected":""}>${o}</option>`).join("")}</select></div>`;
   }
   if (p.tipo === "radio") {
+    const esOtro = valorExistente && !(p.opciones||[]).includes(valorExistente);
     return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label>
-      ${(p.opciones||[]).map(o => `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px"><input type="radio" name="${nombreCampo}" value="${o}" style="width:auto"> ${o}</label>`).join("")}
-      ${p.permiteOtro ? `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px"><input type="radio" name="${nombreCampo}" value="__otro__" style="width:auto"> Otro:</label><input type="text" id="${nombreCampo}_otro" placeholder="Especifica...">` : ""}
+      ${(p.opciones||[]).map(o => `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px"><input type="radio" name="${nombreCampo}" value="${o}" style="width:auto" ${o===valorExistente?"checked":""}> ${o}</label>`).join("")}
+      ${p.permiteOtro ? `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px"><input type="radio" name="${nombreCampo}" value="__otro__" style="width:auto" ${esOtro?"checked":""}> Otro:</label><input type="text" id="${nombreCampo}_otro" placeholder="Especifica..." value="${esOtro?String(valorExistente).replace(/"/g,'&quot;'):''}">` : ""}
     </div>`;
   }
   if (p.tipo === "checkbox") {
+    const seleccionados = Array.isArray(valorExistente) ? valorExistente : [];
     return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label>
-      ${(p.opciones||[]).map(o => `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px"><input type="checkbox" name="${nombreCampo}" value="${o}" style="width:auto"> ${o}</label>`).join("")}
+      ${(p.opciones||[]).map(o => `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px"><input type="checkbox" name="${nombreCampo}" value="${o}" style="width:auto" ${seleccionados.includes(o)?"checked":""}> ${o}</label>`).join("")}
       ${p.permiteOtro ? `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px"><input type="checkbox" id="${nombreCampo}_otro_check" style="width:auto"> Otro:</label><input type="text" id="${nombreCampo}_otro" placeholder="Especifica...">` : ""}
     </div>`;
   }
   if (p.tipo === "imagen") {
+    const existente = valorExistente && typeof valorExistente === "object" ? valorExistente : null;
+    const urls = existente ? (Array.isArray(existente.urls) ? existente.urls : (existente.url ? [existente.url] : [])) : [];
     return `<div class="form-group"><label>${p.etiqueta}${marcaReq}</label>
+      ${urls.length ? `<div style="margin-bottom:6px">${urls.map(u=>`<img src="${u}" style="max-width:64px;max-height:64px;border-radius:6px;margin-right:6px;object-fit:cover">`).join("")}</div><div style="font-size:0.72rem;color:var(--gris);margin-bottom:6px">Ya tienes foto(s) aquí — sube nuevas solo si quieres reemplazarlas</div>` : ""}
       <input type="file" id="${nombreCampo}" accept="image/*" multiple style="margin-bottom:4px">
       <div style="font-size:0.72rem;color:var(--gris);margin-bottom:8px">Puedes subir 1 o 2 fotos</div>
-      <textarea id="${nombreCampo}_comentario" placeholder="Agrega un comentario (opcional)"></textarea>
+      <textarea id="${nombreCampo}_comentario" placeholder="Agrega un comentario (opcional)">${existente?.comentario || ""}</textarea>
     </div>`;
   }
   return "";
@@ -445,7 +452,100 @@ function renderHistorialItemReto(fila){
   return `<div class="historial-item">
     <div class="historial-fecha">${fecha}</div>
     <div class="historial-campos">${campos}</div>
+    <button type="button" class="btn-secundario" style="margin-top:8px;font-size:0.8rem;padding:6px 12px" onclick="abrirEdicionRespuestaUsuario(${fila.id})">✏️ Editar esta entrada</button>
   </div>`;
+}
+
+function abrirEdicionRespuestaUsuario(respuestaId){
+  const fila = (historialRetoCache || []).find(f => f.id === respuestaId);
+  if (!fila) return;
+  document.getElementById("card").classList.remove("card-ancho");
+  render(`
+    <div class="icono">✏️</div>
+    <h1>Editar tu entrada</h1>
+    <div class="desc">${formatoWhatsapp(reto.titulo)}</div>
+    ${reto.preguntas.map((p, idx) => renderCampoPregunta(p, idx, (fila.respuestas || {})[p.etiqueta])).join("")}
+    <button id="btnEnviarRespuesta" onclick="guardarEdicionRespuestaUsuario(${respuestaId})">💾 Guardar cambios</button>
+    <button type="button" class="btn-secundario" onclick="renderFormularioPersonalizado()">← Cancelar</button>
+  `);
+}
+
+async function guardarEdicionRespuestaUsuario(respuestaId){
+  const btn = document.getElementById("btnEnviarRespuesta");
+  const filaExistente = (historialRetoCache || []).find(f => f.id === respuestaId);
+  const respuestas = {};
+
+  for (let idx = 0; idx < reto.preguntas.length; idx++) {
+    const p = reto.preguntas[idx];
+
+    if (p.tipo === "imagen") {
+      const fileInput = document.getElementById(`preg_${idx}`);
+      const comentario = document.getElementById(`preg_${idx}_comentario`)?.value.trim() || "";
+      const archivos = fileInput?.files ? Array.from(fileInput.files) : [];
+      const valorPrevio = (filaExistente?.respuestas || {})[p.etiqueta] || {};
+
+      if (archivos.length > 2) {
+        alert(`Puedes subir máximo 2 imágenes para: "${p.etiqueta}"`);
+        return;
+      }
+      if (archivos.length > 0) {
+        btn.disabled = true; btn.textContent = archivos.length > 1 ? "Subiendo imágenes..." : "Subiendo imagen...";
+        try {
+          const urls = [];
+          for (const archivo of archivos) urls.push(await subirImagenReto(archivo));
+          respuestas[p.etiqueta] = { urls, comentario };
+        } catch (e) {
+          btn.disabled = false; btn.textContent = "💾 Guardar cambios";
+          alert("No se pudo subir la imagen, intenta de nuevo.");
+          return;
+        }
+      } else {
+        // No subió fotos nuevas -- mantenemos las que ya tenía, solo actualizamos el comentario
+        respuestas[p.etiqueta] = { urls: valorPrevio.urls || [], comentario };
+      }
+      if (p.requerido && (!respuestas[p.etiqueta].urls || respuestas[p.etiqueta].urls.length === 0)) {
+        alert(`Por favor sube al menos 1 imagen para: "${p.etiqueta}"`);
+        return;
+      }
+      continue;
+    }
+
+    const valor = leerValorPregunta(p, idx);
+    const vacio = Array.isArray(valor) ? valor.length === 0 : !valor;
+    if (p.requerido && vacio) {
+      alert(`Por favor completa: "${p.etiqueta}"`);
+      return;
+    }
+    respuestas[p.etiqueta] = valor;
+  }
+
+  btn.disabled = true; btn.textContent = "Guardando...";
+  try {
+    const res = await fetch(`${SUPABASE_URL}rest/v1/retos_respuestas?id=eq.${respuestaId}&email=eq.${encodeURIComponent(usuarioActual.email)}`, {
+      method: "PATCH",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ respuestas })
+    });
+    if (!res.ok) throw new Error();
+    historialRetoCache = null;
+    historialRetoAbierto = true;
+    render(`
+      <div class="ok-msg">
+        <div class="icono">✅</div>
+        <h1>¡Cambios guardados!</h1>
+        <div class="desc">Tu entrada fue actualizada. 🌿</div>
+        <button onclick="renderFormularioPersonalizado()">➕ Agregar otra entrada</button>
+        <button type="button" class="btn-secundario" id="btnToggleHistorialReto" onclick="toggleHistorialReto()">📜 Ver mi historial</button>
+        <div id="historialRetoWrap" style="display:none">
+          <div id="historialRetoLista"></div>
+        </div>
+      </div>
+    `);
+    mostrarHistorialRetoAbierto();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "💾 Guardar cambios";
+    alert("No se pudo guardar el cambio, intenta de nuevo.");
+  }
 }
 
 function leerValorPregunta(p, idx){

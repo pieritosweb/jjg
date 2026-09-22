@@ -567,7 +567,7 @@
     <div class="nav-item" id="navSorteos" onclick="showTab('sorteos')"><span class="nav-icon">🎉</span> Sorteos</div>
     <div class="nav-item" id="navFlash" onclick="showTab('flash')"><span class="nav-icon">⚡</span> Flash Sale</div>
     <div class="nav-item" id="navFeedback" onclick="showTab('feedback')"><span class="nav-icon">💬</span> Feedback</div>
-    <div class="nav-item" id="navBlacklist" onclick="showTab('blacklist')"><span class="nav-icon">🚫</span> Blacklist</div>
+    <div class="nav-item" id="navBlacklist" onclick="showTab('blacklist')" style="display:none"><span class="nav-icon">🚫</span> Blacklist</div>
     <div class="nav-item" id="navCupones" onclick="showTab('cupones')"><span class="nav-icon">🎟️</span> Cupones</div>
   </nav>
 </aside>
@@ -1194,6 +1194,24 @@
     </tr></thead>
     <tbody id="tablaHistorialStock"><tr class="empty-row"><td colspan="4">Cargando...</td></tr></tbody>
     </table>
+  </div>
+</div>
+
+<!-- MODAL EDITAR RESPUESTA DE RETO -->
+<div class="modal-overlay" id="modalEditarRespuestaReto">
+  <div class="modal" style="position:relative;max-width:560px">
+    <button type="button" class="modal-close-x" onclick="document.getElementById('modalEditarRespuestaReto').classList.remove('active')" title="Cerrar" aria-label="Cerrar">✕</button>
+    <h2>✏️ Editar respuesta</h2>
+    <div class="form-group">
+      <label>Nombre</label>
+      <input type="text" id="erNombre">
+    </div>
+    <div class="form-group">
+      <label>WhatsApp</label>
+      <input type="text" id="erWsp">
+    </div>
+    <div id="erPreguntasCont"></div>
+    <button class="btn-guardar" style="margin-top:12px" onclick="guardarEdicionRespuestaReto()">Guardar cambios</button>
   </div>
 </div>
 
@@ -2584,6 +2602,111 @@ function valorRespuestaATexto(v){
   return Array.isArray(v) ? v.join(', ') : (v ?? '');
 }
 
+let respuestaRetoEditandoId = null;
+
+function abrirEdicionRespuestaReto(respuestaId){
+  if (!exportModalData || exportModalData.tipo !== 'preguntas') return;
+  const r = exportModalData.filas.find(f => f.id === respuestaId);
+  if (!r) return showToast('No se encontró la respuesta', 'error');
+
+  respuestaRetoEditandoId = respuestaId;
+  document.getElementById('erNombre').value = r.nombre || '';
+  document.getElementById('erWsp').value = r.wsp || '';
+
+  const cont = document.getElementById('erPreguntasCont');
+  cont.innerHTML = exportModalData.preguntas.map((p, i) => {
+    const valorActual = (r.respuestas || {})[p.etiqueta];
+    const idCampo = `erPregunta_${i}`;
+
+    if (p.tipo === 'imagen') {
+      const urls = valorActual && typeof valorActual === 'object' ? (Array.isArray(valorActual.urls) ? valorActual.urls : (valorActual.url ? [valorActual.url] : [])) : [];
+      return `<div class="form-group full">
+        <label>${p.etiqueta} <span style="font-weight:400;color:var(--gris);font-size:0.75rem">(la(s) foto(s) no se puede cambiar aquí, solo el comentario)</span></label>
+        <div style="margin-bottom:6px">${urls.map(u => `<img src="${u}" style="max-width:70px;max-height:70px;border-radius:6px;margin-right:6px;object-fit:cover">`).join('') || '<span style="color:#ccc">Sin foto</span>'}</div>
+        <input type="text" id="${idCampo}" data-tipo="imagen-comentario" value="${(valorActual?.comentario || '').replace(/"/g,'&quot;')}" placeholder="Comentario">
+      </div>`;
+    }
+    if (p.tipo === 'parrafo') {
+      return `<div class="form-group full">
+        <label>${p.etiqueta}</label>
+        <textarea id="${idCampo}" data-tipo="texto" rows="3">${valorActual || ''}</textarea>
+      </div>`;
+    }
+    if (p.tipo === 'radio' || p.tipo === 'select') {
+      return `<div class="form-group full">
+        <label>${p.etiqueta}</label>
+        <select id="${idCampo}" data-tipo="texto">
+          ${(p.opciones || []).map(o => `<option value="${o}" ${o === valorActual ? 'selected' : ''}>${o}</option>`).join('')}
+        </select>
+      </div>`;
+    }
+    if (p.tipo === 'checkbox') {
+      const seleccionados = Array.isArray(valorActual) ? valorActual : [];
+      return `<div class="form-group full">
+        <label>${p.etiqueta}</label>
+        <div id="${idCampo}" data-tipo="checkbox" style="display:flex;flex-wrap:wrap;gap:10px">
+          ${(p.opciones || []).map(o => `<label style="display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;font-weight:400">
+            <input type="checkbox" value="${o}" ${seleccionados.includes(o) ? 'checked' : ''}> ${o}
+          </label>`).join('')}
+        </div>
+      </div>`;
+    }
+    // texto (por defecto)
+    return `<div class="form-group full">
+      <label>${p.etiqueta}</label>
+      <input type="text" id="${idCampo}" data-tipo="texto" value="${(valorActual ?? '').toString().replace(/"/g,'&quot;')}">
+    </div>`;
+  }).join('');
+
+  document.getElementById('modalEditarRespuestaReto').classList.add('active');
+}
+
+async function guardarEdicionRespuestaReto(){
+  if (!respuestaRetoEditandoId) return;
+  const r = exportModalData.filas.find(f => f.id === respuestaRetoEditandoId);
+  if (!r) return;
+
+  const nombre = document.getElementById('erNombre').value.trim();
+  const wsp = document.getElementById('erWsp').value.trim();
+  const nuevasRespuestas = { ...(r.respuestas || {}) };
+
+  exportModalData.preguntas.forEach((p, i) => {
+    const idCampo = `erPregunta_${i}`;
+    const el = document.getElementById(idCampo);
+    if (!el) return;
+    const tipo = el.dataset.tipo;
+
+    if (tipo === 'checkbox') {
+      const marcados = Array.from(el.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+      nuevasRespuestas[p.etiqueta] = marcados;
+    } else if (tipo === 'imagen-comentario') {
+      const actual = nuevasRespuestas[p.etiqueta] || {};
+      nuevasRespuestas[p.etiqueta] = { ...actual, comentario: el.value.trim() };
+    } else {
+      nuevasRespuestas[p.etiqueta] = el.value;
+    }
+  });
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/retos_respuestas?id=eq.${respuestaRetoEditandoId}`, {
+      method: 'PATCH',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ nombre, wsp, respuestas: nuevasRespuestas })
+    });
+    if (!res.ok) { showToast('Error al guardar los cambios', 'error'); return; }
+
+    showToast('Respuesta actualizada ✅', 'success');
+    document.getElementById('modalEditarRespuestaReto').classList.remove('active');
+    respuestaRetoEditandoId = null;
+
+    // Recargamos la tabla de inscritos para reflejar el cambio
+    const retoId = r.reto_id;
+    await verInscritosReto(retoId);
+  } catch (e) {
+    showToast('Error de conexión', 'error');
+  }
+}
+
 function exportarRespuestasCSV(){
   if (!exportModalData || !exportModalData.filas.length) { showToast('No hay respuestas para exportar todavía', 'error'); return; }
   const { titulo, tipo, preguntas, filas } = exportModalData;
@@ -2628,7 +2751,7 @@ async function verInscritosReto(retoId){
   const tbody = document.getElementById('tablaInscritosReto');
   const thead = document.getElementById('tablaInscritosRetoHead');
   const tienePreguntas = Array.isArray(reto?.preguntas) && reto.preguntas.length > 0;
-  const colCount = tienePreguntas ? (2 + reto.preguntas.length + 1) : 4;
+  const colCount = tienePreguntas ? (2 + reto.preguntas.length + 2) : 4;
   tbody.innerHTML = `<tr class="empty-row"><td colspan="${colCount}">Cargando...</td></tr>`;
   document.getElementById('mensajeMasivoWrap').style.display = '';
   document.getElementById('mensajeMasivoTexto').value = '';
@@ -2640,7 +2763,8 @@ async function verInscritosReto(retoId){
       <th>Nombre</th>
       <th>WhatsApp</th>
       ${reto.preguntas.map(p => `<th style="font-size:0.75rem">${p.etiqueta}</th>`).join('')}
-      <th style="width:100px">Fecha</th>`;
+      <th style="width:100px">Fecha</th>
+      <th style="width:70px">Acciones</th>`;
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/retos_respuestas?reto_id=eq.${retoId}&select=*&order=created_at.desc`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
@@ -2665,6 +2789,7 @@ async function verInscritosReto(retoId){
             return `<td style="font-size:0.8rem;white-space:normal;word-break:break-word;max-width:260px;vertical-align:top">${contenido || '<span style="color:#ccc">—</span>'}</td>`;
           }).join('')}
           <td style="font-size:0.75rem;color:var(--gris)">${new Date(r.created_at).toLocaleString('es-PE', { timeZone: 'America/Lima' })}</td>
+          <td><button class="btn-sm" style="font-size:0.7rem;padding:3px 8px" onclick="abrirEdicionRespuestaReto(${r.id})">✏️ Editar</button></td>
         </tr>`).join('');
     } catch (e) {
       tbody.innerHTML = `<tr class="empty-row"><td colspan="${colCount}">Error al cargar respuestas</td></tr>`;
@@ -4856,7 +4981,7 @@ window.addEventListener("popstate", () => {
   <button onclick="showTab('feedback')" id="mobileFeedback">
     <span class="nav-icon">💬</span>Feedback
   </button>
-  <button onclick="showTab('blacklist')" id="mobileBlacklist">
+  <button onclick="showTab('blacklist')" id="mobileBlacklist" style="display:none">
     <span class="nav-icon">🚫</span>Blacklist
   </button>
   <button onclick="showTab('cupones')" id="mobileCupones">
