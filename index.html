@@ -96,11 +96,6 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
   @media (max-width: 600px) {
-    .carrito-btn {
-      top: 76px !important;
-      bottom: auto !important;
-      margin-top: 0 !important;
-    }
     header {
       display: flex;
       align-items: center;
@@ -1745,6 +1740,49 @@ function limpiarBusqueda(inputId, fn){
   el.focus();
 }
 setInterval(()=>{const e=document.getElementById("carritoBadge");if(e&&"none"!==e.style.display){e.classList.remove("jump");void e.offsetWidth;e.classList.add("jump")}},30000);
+
+// Posición del botón de carrito en mobile: empieza a la mitad de la
+// pantalla, y en cuanto el buscador de productos (al hacer scroll) llega
+// a esa misma altura, el botón se queda enganchado ahí sin seguir
+// bajando más. Al volver arriba del todo, regresa a la mitad.
+(function () {
+  let enganchado = false;
+  let alturaEnganche = null;
+
+  function actualizarPosicionCarritoBtn() {
+    const btn = document.querySelector('.carrito-btn');
+    const buscador = document.getElementById('buscadorProductos');
+    if (!btn || !buscador || window.innerWidth > 600) return;
+
+    const mitadViewport = window.innerHeight / 2;
+    const alturaBuscadorActual = buscador.getBoundingClientRect().top;
+
+    if (!enganchado) {
+      if (alturaBuscadorActual <= mitadViewport) {
+        // El buscador ya alcanzó la mitad de la pantalla -- nos enganchamos ahí
+        enganchado = true;
+        alturaEnganche = mitadViewport;
+        btn.style.top = alturaEnganche + 'px';
+        btn.style.marginTop = '0';
+        btn.style.bottom = 'auto';
+      }
+      // si todavía no llega, no tocamos nada -- se queda con el CSS de "centrado" de siempre
+    } else {
+      // Ya enganchado: solo lo soltamos si volvemos arriba del todo (buscador vuelve a
+      // estar más abajo que la mitad, o casi al principio de la página)
+      if (window.scrollY < 40) {
+        enganchado = false;
+        btn.style.top = 'calc(50% + 2cm)';
+        btn.style.marginTop = '-26px';
+        btn.style.bottom = 'auto';
+      }
+    }
+  }
+
+  window.addEventListener('scroll', actualizarPosicionCarritoBtn, { passive: true });
+  window.addEventListener('resize', actualizarPosicionCarritoBtn);
+  actualizarPosicionCarritoBtn();
+})();
 </script>
 <footer style="text-align:center;padding:24px;font-size:0.75rem;color:var(--texto-tenue);border-top:1px solid var(--borde-ui);margin-top:20px">
   🌿 Jar Jar Green · Lima, Perú ·
