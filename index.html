@@ -952,7 +952,7 @@
       <div style="margin-bottom:14px">
         <label style="font-size:0.85rem;font-weight:600;color:var(--verde-oscuro);display:block;margin-bottom:4px">🎟️ Cupón de descuento (opcional)</label>
         <div style="display:flex;gap:6px">
-          <input type="text" id="codigoDescuentoInput" placeholder="Ej: VERANO2026" style="flex:1;text-transform:uppercase;padding:9px 12px;border:1.5px solid var(--borde);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.88rem">
+          <input type="text" id="codigoDescuentoInput" placeholder="Ej: VERANO2026" style="flex:1;text-transform:uppercase;padding:9px 12px;border:1.5px solid #ccc;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.88rem">
           <button type="button" onclick="validarCodigoDescuentoModal()" style="width:auto;padding:9px 16px;background:var(--verde-hoja);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;margin-top:0">Aplicar</button>
         </div>
         <div id="codigoDescuentoMsg" style="font-size:0.75rem;margin-top:5px"></div>
@@ -1332,7 +1332,7 @@ function cambiarQty(e){const t=itemSeleccionado?.pack_size>1?Math.floor((itemSel
         return `<div style="font-size:0.75rem;color:var(--gris);text-align:center">Ya tienes JarJar Puntos canjeados en este pedido — quítalos primero si deseas usar un cupón de descuento.</div>`;
       }
       return `<div style="display:flex;gap:6px">
-        <input type="text" id="carritoCodigoInput" placeholder="🎟️ Cupón de descuento" style="flex:1;text-transform:uppercase;padding:9px 12px;border:1.5px solid var(--borde);border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:0.85rem">
+        <input type="text" id="carritoCodigoInput" placeholder="🎟️ Cupón de descuento" style="flex:1;text-transform:uppercase;padding:9px 12px;border:1.5px solid #ccc;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:0.85rem">
         <button onclick="aplicarCodigoDescuentoCarrito()" style="width:auto;padding:9px 16px;background:var(--verde-hoja);color:#fff;border:none;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer">Aplicar</button>
       </div><div id="carritoCodigoMsg" style="font-size:0.72rem;margin-top:4px"></div>`;
     })()}</div>\n    <div id="carritoPuntosPreviewWrap">${l}</div>\n    ${u}\n    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">${m}</div>\n    <p style="font-size:0.72rem;color:var(--gris);margin-top:8px;text-align:center;line-height:1.4">\n      Coordina el pago por WhatsApp para confirmar tu reserva 🌿\n    </p>`;cargarPuntosCarritoTotal();}function carritoCapPorLinea(l){
@@ -1761,7 +1761,7 @@ setInterval(()=>{const e=document.getElementById("carritoBadge");if(e&&"none"!==
       if (alturaBuscadorActual <= mitadViewport) {
         // El buscador ya alcanzó la mitad de la pantalla -- nos enganchamos ahí
         enganchado = true;
-        alturaEnganche = 84;
+        alturaEnganche = 100;
         btn.style.top = alturaEnganche + 'px';
         btn.style.marginTop = '0';
         btn.style.bottom = 'auto';
