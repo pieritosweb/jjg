@@ -4049,7 +4049,8 @@ function actualizarEtiquetaModoClientes(){
   const btn = document.querySelector('.modo-sorteo-btn[data-modo="clientes"]');
   if (btn) {
     const nombreMes = MESES_ES[month - 1];
-    btn.textContent = `👥 Sorteo Clientes ${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)}`;
+    // ⚠️ TEMPORAL: mientras se incluya setiembre arriba, lo reflejamos aquí también
+    btn.textContent = `👥 Sorteo Clientes Set+${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)}`;
   }
 }
 
@@ -4086,7 +4087,10 @@ async function cargarParticipantesClientesWeb(){
       const estadoActual = r.estado || 'pendiente';
       if (estadoActual === 'pendiente') return;
       const mesDePago = extraerMesUltimoPago(r.nota_admin);
-      if (mesDePago !== month) return;
+      // ⚠️ TEMPORAL (quitar el "9," cuando ya se haga el sorteo atrasado de setiembre):
+      // normalmente solo entraría "month" (el mes actual), pero por ahora también
+      // incluimos setiembre para el sorteo que se pasó de fecha.
+      if (![9, month].includes(mesDePago)) return;
       const clave = r.email || r.wsp || r.nombre;
       if (!clave || vistos.has(clave)) return;
       vistos.add(clave);
