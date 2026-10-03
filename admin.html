@@ -1220,7 +1220,9 @@
   <div class="modal" style="position:relative;max-width:95vw;width:1100px;max-height:85vh;overflow-y:auto">
     <button type="button" class="modal-close-x" onclick="document.getElementById('modalInscritosReto').classList.remove('active')" title="Cerrar" aria-label="Cerrar">✕</button>
     <h2 id="modalInscritosTitulo" style="display:inline-block;margin-right:12px">Inscritos</h2>
-    <button class="btn-sm" onclick="exportarRespuestasCSV()">⬇️ Exportar CSV</button>
+    <button class="btn-sm" onclick="exportarRespuestas('csv')">⬇️ CSV</button>
+    <button class="btn-sm" onclick="exportarRespuestas('excel')">⬇️ Excel</button>
+    <button class="btn-sm" onclick="exportarRespuestas('json')">⬇️ JSON (crudo)</button>
     <div id="mensajeMasivoWrap" style="background:#f8f4ef;border-radius:12px;padding:14px;margin:12px 0">
       <div style="font-weight:700;margin-bottom:8px;color:var(--verde-oscuro);font-size:0.88rem">📢 Mensaje masivo</div>
       <textarea id="mensajeMasivoTexto" rows="3" placeholder="Escribe el mensaje una sola vez..." style="width:100%;display:block;box-sizing:border-box;resize:vertical"></textarea>
@@ -2723,41 +2725,70 @@ async function eliminarRespuestaReto(respuestaId, retoId){
   }
 }
 
-function exportarRespuestasCSV(){
-  if (!exportModalData || !exportModalData.filas.length) { showToast('No hay respuestas para exportar todavía', 'error'); return; }
-  const { titulo, tipo, preguntas, filas } = exportModalData;
-
-  let encabezados, filasCSV;
+function construirTablaRespuestas(){
+  const { tipo, preguntas, filas } = exportModalData;
+  let encabezados, filasTabla;
 
   if (tipo === 'preguntas') {
     encabezados = ['Nombre', 'WhatsApp', ...preguntas.map(p => p.etiqueta), 'Fecha'];
-    filasCSV = filas.map(r => [
+    filasTabla = filas.map(r => [
       r.nombre || '', r.wsp || '',
       ...preguntas.map(p => valorRespuestaATexto((r.respuestas || {})[p.etiqueta])),
       new Date(r.created_at).toLocaleString('es-PE', { timeZone: 'America/Lima' })
     ]);
   } else if (tipo === 'feedback') {
     encabezados = [...preguntas.map(p => p.etiqueta), 'Fecha'];
-    filasCSV = filas.map(r => [
+    filasTabla = filas.map(r => [
       ...preguntas.map(p => valorRespuestaATexto((r.respuestas || {})[p.etiqueta])),
       new Date(r.created_at).toLocaleString('es-PE', { timeZone: 'America/Lima' })
     ]);
   } else {
     encabezados = ['Nombre', 'WhatsApp', 'Pregunta/comentario', 'Fecha'];
-    filasCSV = filas.map(i => [
+    filasTabla = filas.map(i => [
       i.nombre || '', i.wsp || '', i.pregunta || '',
       new Date(i.created_at).toLocaleString('es-PE', { timeZone: 'America/Lima' })
     ]);
   }
+  return { encabezados, filasTabla };
+}
 
-  const csv = [encabezados, ...filasCSV].map(fila => fila.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+function descargarBlob(blob, nombreArchivo){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${titulo.replace(/[^a-zA-Z0-9]/g, '_')}_respuestas.csv`;
+  a.download = nombreArchivo;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function exportarRespuestas(formato){
+  if (!exportModalData || !exportModalData.filas.length) { showToast('No hay respuestas para exportar todavía', 'error'); return; }
+  const { titulo, filas } = exportModalData;
+  const nombreBase = titulo.replace(/[^a-zA-Z0-9]/g, '_');
+
+  if (formato === 'json') {
+    // Crudo: los datos tal cual están guardados, sin aplanar ni convertir nada
+    const blob = new Blob([JSON.stringify(filas, null, 2)], { type: 'application/json' });
+    descargarBlob(blob, `${nombreBase}_respuestas.json`);
+    showToast(`Exportado (${filas.length} respuesta(s))`, 'success');
+    return;
+  }
+
+  const { encabezados, filasTabla } = construirTablaRespuestas();
+
+  if (formato === 'excel') {
+    const hoja = XLSX.utils.aoa_to_sheet([encabezados, ...filasTabla]);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, 'Respuestas');
+    XLSX.writeFile(libro, `${nombreBase}_respuestas.xlsx`);
+    showToast(`Exportado (${filas.length} respuesta(s))`, 'success');
+    return;
+  }
+
+  // CSV por defecto
+  const csv = [encabezados, ...filasTabla].map(fila => fila.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  descargarBlob(blob, `${nombreBase}_respuestas.csv`);
   showToast(`Exportado (${filas.length} respuesta(s))`, 'success');
 }
 
