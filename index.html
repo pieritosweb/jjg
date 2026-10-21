@@ -728,6 +728,10 @@
     .card-actions { flex-shrink: 0; }
     .stock-info { font-size: 11.3px; }
   }
+
+  /* Escala general en celular: menos que 1 = más "zoomed out", más contenido visible.
+     Para ajustar, cambia solo este número (0.9 = 90%). */
+  @media (max-width: 600px) { html { zoom: 0.9; } }
 </style>
 
   <!-- FAVICON -->
@@ -1754,12 +1758,13 @@ setInterval(()=>{const e=document.getElementById("carritoBadge");if(e&&"none"!==
     const buscador = document.getElementById('buscadorProductos');
     if (!btn || !buscador || window.innerWidth > 600) return;
 
-    const mitadViewport = window.innerHeight / 2;
-    const alturaBuscadorActual = buscador.getBoundingClientRect().top;
-
     if (!enganchado) {
-      if (alturaBuscadorActual <= mitadViewport) {
-        // El buscador ya alcanzó la mitad de la pantalla -- nos enganchamos ahí
+      // Comparamos el buscador contra la posición real del botón (ambos medidos igual),
+      // así no depende de la escala general de la página.
+      const alturaBuscadorActual = buscador.getBoundingClientRect().top;
+      const alturaBoton = btn.getBoundingClientRect().top;
+      if (window.scrollY >= 40 && alturaBuscadorActual <= alturaBoton) {
+        // El usuario ya scrolleó y el buscador alcanzó la altura del botón -- nos enganchamos
         enganchado = true;
         alturaEnganche = 195;
         btn.style.top = alturaEnganche + 'px';
