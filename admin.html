@@ -2327,6 +2327,7 @@ async function renderRetos(){
         </td>
         <td><div class="actions">
           <button class="btn-sm" onclick="cargarRetoParaEditar(${r.id})">📂 Cargar</button>
+          <button class="btn-sm" onclick="clonarReto(${r.id})" title="Crear un reto nuevo a partir de este">📋 Clonar</button>
           <button class="btn-sm" onclick="copiarLinkReto('${r.slug}')">🔗 Copiar link</button>
           ${r.finalizado
             ? `<button class="btn-sm" onclick="reiniciarReto(${r.id})">🔄 Reiniciar</button>`
@@ -2411,6 +2412,23 @@ function cargarRetoParaEditar(id){
   document.getElementById('retoFormTitulo').textContent = `✏️ Editando: ${reto.titulo}`;
   document.getElementById('retoBtnGuardar').textContent = '💾 Guardar cambios';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Clona un reto: carga su título, descripción y preguntas en el formulario como un
+// reto NUEVO (no se guarda nada hasta que presiones "Publicar reto"), así puedes
+// ajustar el título o las preguntas antes de publicarlo. No copia las respuestas.
+function clonarReto(id){
+  const reto = retosData.find(r => r.id === id);
+  if (!reto) { showToast('No se encontró ese reto', 'error'); return; }
+  retoIdActual = null; // null = al guardar se crea uno nuevo
+  document.getElementById('retoTitulo').value = `${reto.titulo || ''} (copia)`;
+  document.getElementById('retoDescripcion').value = reto.descripcion || '';
+  preguntasRetoEditando = (Array.isArray(reto.preguntas) ? reto.preguntas : []).map(p => ({ ...p, opciones: Array.isArray(p.opciones) ? [...p.opciones] : p.opciones }));
+  renderPreguntasRetoEditor();
+  document.getElementById('retoFormTitulo').textContent = `📋 Clonando: ${reto.titulo}`;
+  document.getElementById('retoBtnGuardar').textContent = '✅ Publicar reto clonado';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('Reto clonado en el formulario — revísalo y publícalo 📋', 'success');
 }
 
 async function guardarReto(){
