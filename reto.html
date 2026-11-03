@@ -110,6 +110,11 @@
   .estado-msg { text-align: center; font-size: 0.9rem; color: var(--gris); padding: 20px 0; }
   .ok-msg { text-align: center; padding: 10px 0; }
   .ok-msg .icono { margin-bottom: 10px; }
+
+  /* Preguntas bloqueadas por una respuesta anterior */
+  .pregunta-wrap.bloqueada { opacity: 0.45; }
+  .pregunta-wrap.bloqueada input, .pregunta-wrap.bloqueada select, .pregunta-wrap.bloqueada textarea, .pregunta-wrap.bloqueada label { cursor: not-allowed; }
+  .bloqueo-nota { display: none; font-size: 0.75rem; color: var(--gris); margin: -8px 0 14px; }
 </style>
 </head>
 <body>
@@ -354,13 +359,14 @@ function renderFormularioPersonalizado(){
     <h1>${formatoWhatsapp(reto.titulo)}</h1>
     <div class="desc">${formatoWhatsapp(reto.descripcion)}</div>
     <div style="font-size:0.82rem;color:var(--gris);margin-bottom:14px">Enviando como <strong>${usuarioActual.nombre}</strong> (${usuarioActual.wsp})</div>
-    ${reto.preguntas.map((p, idx) => renderCampoPregunta(p, idx)).join("")}
+    ${reto.preguntas.map((p, idx) => envolverPregunta(p, idx)).join("")}
     <button id="btnEnviarRespuesta" onclick="enviarRespuestaPersonalizada()">✅ Enviar entrada</button>
     <button type="button" class="btn-secundario" id="btnToggleHistorialReto" onclick="toggleHistorialReto()">📜 Ver mi historial</button>
     <div id="historialRetoWrap" style="display:none">
       <div id="historialRetoLista"></div>
     </div>
   `);
+  aplicarBloqueos();
   if (historialRetoAbierto) mostrarHistorialRetoAbierto();
 }
 
@@ -486,19 +492,22 @@ function abrirEdicionRespuestaUsuario(respuestaId){
     <div class="icono">✏️</div>
     <h1>Editar tu entrada</h1>
     <div class="desc">${formatoWhatsapp(reto.titulo)}</div>
-    ${reto.preguntas.map((p, idx) => renderCampoPregunta(p, idx, (fila.respuestas || {})[p.etiqueta])).join("")}
+    ${reto.preguntas.map((p, idx) => envolverPregunta(p, idx, (fila.respuestas || {})[p.etiqueta])).join("")}
     <button id="btnEnviarRespuesta" onclick="guardarEdicionRespuestaUsuario(${respuestaId})">💾 Guardar cambios</button>
     <button type="button" class="btn-secundario" onclick="renderFormularioPersonalizado()">← Cancelar</button>
   `);
+  aplicarBloqueos();
 }
 
 async function guardarEdicionRespuestaUsuario(respuestaId){
   const btn = document.getElementById("btnEnviarRespuesta");
   const filaExistente = (historialRetoCache || []).find(f => f.id === respuestaId);
   const respuestas = {};
+  const bloqueadas = calcularBloqueadas();
 
   for (let idx = 0; idx < reto.preguntas.length; idx++) {
     const p = reto.preguntas[idx];
+    if (bloqueadas.has(idx)) continue; // bloqueada por una respuesta anterior: no se valida ni se guarda
 
     if (p.tipo === "imagen") {
       const fileInput = document.getElementById(`preg_${idx}`);
@@ -577,6 +586,59 @@ async function guardarEdicionRespuestaUsuario(respuestaId){
   }
 }
 
+// ---------- Lógica de bloqueo ----------
+// Una pregunta de "opción única" o "lista desplegable" puede bloquear preguntas que
+// vienen DESPUÉS según la opción elegida (reto.preguntas[i].bloqueos = { opción: [ids] }).
+function envolverPregunta(p, idx, valorExistente){
+  return `<div class="pregunta-wrap" data-pidx="${idx}">${renderCampoPregunta(p, idx, valorExistente)}<div class="bloqueo-nota">🔒 No aplica según tu respuesta anterior</div></div>`;
+}
+
+function calcularBloqueadas(){
+  const bloqueadas = new Set();
+  if (!reto || !Array.isArray(reto.preguntas)) return bloqueadas;
+  const idxPorId = {};
+  reto.preguntas.forEach((p, i) => { if (p.id) idxPorId[p.id] = i; });
+  reto.preguntas.forEach((p, idx) => {
+    if (bloqueadas.has(idx)) return; // una pregunta bloqueada ya no bloquea a otras
+    if (!p.bloqueos || (p.tipo !== "radio" && p.tipo !== "select")) return;
+    const existe = p.tipo === "select" ? document.getElementById(`preg_${idx}`) : document.querySelector(`input[name="preg_${idx}"]`);
+    if (!existe) return; // el formulario no está en pantalla
+    const valor = leerValorPregunta(p, idx);
+    const objetivos = Object.prototype.hasOwnProperty.call(p.bloqueos, valor) ? p.bloqueos[valor] : [];
+    (Array.isArray(objetivos) ? objetivos : []).forEach(id => {
+      const j = idxPorId[id];
+      if (j !== undefined && j > idx) bloqueadas.add(j);
+    });
+  });
+  return bloqueadas;
+}
+
+function limpiarCamposPregunta(wrap){
+  wrap.querySelectorAll("input, select, textarea").forEach(el => {
+    if (el.type === "radio" || el.type === "checkbox") el.checked = false;
+    else if (el.tagName === "SELECT") el.selectedIndex = 0;
+    else el.value = "";
+  });
+}
+
+function aplicarBloqueos(){
+  if (!reto || !Array.isArray(reto.preguntas) || !reto.preguntas.some(p => p.bloqueos && Object.keys(p.bloqueos).length)) return;
+  const bloqueadas = calcularBloqueadas();
+  document.querySelectorAll(".pregunta-wrap").forEach(wrap => {
+    const idx = parseInt(wrap.dataset.pidx, 10);
+    const bloquear = bloqueadas.has(idx);
+    const yaEstaba = wrap.classList.contains("bloqueada");
+    wrap.classList.toggle("bloqueada", bloquear);
+    wrap.querySelectorAll("input, select, textarea").forEach(el => { el.disabled = bloquear; });
+    if (bloquear && !yaEstaba) limpiarCamposPregunta(wrap);
+    const nota = wrap.querySelector(".bloqueo-nota");
+    if (nota) nota.style.display = bloquear ? "block" : "none";
+  });
+}
+
+document.getElementById("contenido").addEventListener("change", aplicarBloqueos);
+document.getElementById("contenido").addEventListener("input", aplicarBloqueos);
+
 function leerValorPregunta(p, idx){
   const nombreCampo = `preg_${idx}`;
   if (p.tipo === "texto" || p.tipo === "parrafo") return document.getElementById(nombreCampo).value.trim();
@@ -639,8 +701,10 @@ async function subirImagenReto(file){
 async function enviarRespuestaPersonalizada(){
   const btn = document.getElementById("btnEnviarRespuesta");
   const respuestas = {};
+  const bloqueadas = calcularBloqueadas();
   for (let idx = 0; idx < reto.preguntas.length; idx++) {
     const p = reto.preguntas[idx];
+    if (bloqueadas.has(idx)) continue; // bloqueada por una respuesta anterior: no se valida ni se guarda
 
     if (p.tipo === "imagen") {
       const fileInput = document.getElementById(`preg_${idx}`);

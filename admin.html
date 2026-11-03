@@ -545,6 +545,14 @@
   select option { color: #1f2d1f; background: #fff; font-family: Arial, Helvetica, sans-serif; }
   .btn-mover { padding: 4px 9px; }
   .btn-mover:disabled { opacity: 0.3; cursor: not-allowed; }
+  /* Lógica de bloqueo en el editor de preguntas */
+  .bloqueo-fila { margin-top: 8px; padding: 8px 10px; background: #f8f4ef; border-radius: 8px; }
+  .bloqueo-opcion { font-size: 0.8rem; font-weight: 600; color: var(--verde-oscuro); margin-bottom: 6px; }
+  .bloqueo-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pregunta-bloque .bloqueo-chip { display: inline-flex; align-items: center; gap: 5px; margin-top: 0; font-size: 0.74rem; padding: 4px 10px; border: 1.5px solid #ddd; border-radius: 20px; background: #fff; color: var(--gris); cursor: pointer; }
+  .pregunta-bloque .bloqueo-chip input { width: auto; margin: 0; }
+  .pregunta-bloque .bloqueo-chip.marcado { border-color: #c0392b; background: #fdecea; color: #c0392b; font-weight: 600; }
+  .bloqueo-vacio { font-size: 0.75rem; color: var(--gris); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -2374,8 +2382,12 @@ function moverPregunta(cual, idx, dir){
   const j = idx + dir;
   if (j < 0 || j >= lista.length) return;
   const topAntes = cont && cont.children[idx] ? cont.children[idx].getBoundingClientRect().top : null;
+  const bloqueosAntes = feedback ? 0 : contarBloqueos(lista);
   [lista[idx], lista[j]] = [lista[j], lista[idx]];
   if (feedback) renderPreguntasFeedbackEditor(); else renderPreguntasRetoEditor();
+  if (!feedback && contarBloqueos(preguntasRetoEditando) < bloqueosAntes) {
+    showToast('Se quitó un bloqueo: solo puede apuntar a preguntas que vengan después', 'error');
+  }
   if (topAntes !== null && cont.children[j]) {
     window.scrollBy(0, cont.children[j].getBoundingClientRect().top - topAntes);
   }
@@ -2386,18 +2398,111 @@ function cambiarTipoPregunta(cual, idx, tipo){
   else { preguntasRetoEditando[idx].tipo = tipo; renderPreguntasRetoEditor(); }
 }
 
+// ---------- Lógica de bloqueo entre preguntas (solo Retos) ----------
+// Cada pregunta tiene un id estable (para que los bloqueos sobrevivan a reordenar o
+// renombrar). Una pregunta de opción única / lista desplegable guarda
+//   bloqueos: { "texto de la opción": [id de pregunta a bloquear, ...] }
+// y solo puede bloquear preguntas que vienen DESPUÉS de ella.
+function nuevoIdPregunta(){ return 'q_' + Math.random().toString(36).slice(2, 9); }
+function escHtmlAdmin(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function tieneClave(obj, k){ return !!obj && Object.prototype.hasOwnProperty.call(obj, k); }
+
+function contarBloqueos(lista){
+  return lista.reduce((n, q) => n + Object.values(q.bloqueos || {}).reduce((m, a) => m + (a || []).length, 0), 0);
+}
+
+// Quita bloqueos que ya no tienen sentido (pregunta que no es de opción única, opción que
+// ya no existe, o destino que no está DESPUÉS de la pregunta). Devuelve cuántos quitó.
+function limpiarBloqueosLista(lista){
+  let quitados = 0;
+  const posPorId = {};
+  lista.forEach((q, i) => { if (q.id) posPorId[q.id] = i; });
+  lista.forEach((q, i) => {
+    if (!q.bloqueos) return;
+    if (q.tipo !== 'radio' && q.tipo !== 'select') { quitados += contarBloqueos([q]); delete q.bloqueos; return; }
+    const ops = new Set(q.opciones || []);
+    Object.keys(q.bloqueos).forEach(op => {
+      const actuales = q.bloqueos[op] || [];
+      if (!ops.has(op)) { quitados += actuales.length; delete q.bloqueos[op]; return; }
+      const buenos = actuales.filter(id => posPorId[id] !== undefined && posPorId[id] > i);
+      quitados += actuales.length - buenos.length;
+      if (buenos.length) q.bloqueos[op] = buenos; else delete q.bloqueos[op];
+    });
+    if (!Object.keys(q.bloqueos).length) delete q.bloqueos;
+  });
+  return quitados;
+}
+
+// Al editar el texto de las opciones: si solo se renombró una, el bloqueo la sigue.
+function actualizarOpcionesPregunta(idx, texto){
+  const p = preguntasRetoEditando[idx];
+  const nuevas = texto.split('\n').map(s => s.trim()).filter(Boolean);
+  const viejas = p.opciones || [];
+  if (p.bloqueos && nuevas.length === viejas.length) {
+    nuevas.forEach((n, i) => {
+      const v = viejas[i];
+      if (n !== v && n !== '__proto__' && tieneClave(p.bloqueos, v) && !tieneClave(p.bloqueos, n)) {
+        p.bloqueos[n] = p.bloqueos[v];
+        delete p.bloqueos[v];
+      }
+    });
+  }
+  p.opciones = nuevas;
+}
+
+function bloqueosHtml(idx){
+  const p = preguntasRetoEditando[idx];
+  if (!p || !(p.opciones || []).length) return '';
+  const posteriores = preguntasRetoEditando.map((q, j) => ({ q, j })).filter(x => x.j > idx);
+  let html = `<label>Lógica (opcional): según lo que elija, bloquear preguntas</label>`;
+  if (!posteriores.length) return html + `<div class="bloqueo-vacio">No hay preguntas después de esta para bloquear.</div>`;
+  return html + p.opciones.map((op, optIdx) => {
+    if (!op) return '';
+    const marcados = new Set(tieneClave(p.bloqueos, op) ? p.bloqueos[op] : []);
+    const chips = posteriores.map(({ q, j }) =>
+      `<label class="bloqueo-chip${marcados.has(q.id) ? ' marcado' : ''}"><input type="checkbox" ${marcados.has(q.id) ? 'checked' : ''} onchange="toggleBloqueo(${idx}, ${optIdx}, '${q.id}', this.checked); this.parentElement.classList.toggle('marcado', this.checked)"> ${j + 1}. ${escHtmlAdmin((q.etiqueta || '(sin texto)').slice(0, 38))}</label>`
+    ).join('');
+    return `<div class="bloqueo-fila"><div class="bloqueo-opcion">Si elige «${escHtmlAdmin(op)}» → bloquear:</div><div class="bloqueo-chips">${chips}</div></div>`;
+  }).join('');
+}
+
+function bloqueosAreaHtml(idx, p){
+  if (p.tipo !== 'radio' && p.tipo !== 'select') return '';
+  return `<div class="bloqueos-area" data-idx="${idx}">${bloqueosHtml(idx)}</div>`;
+}
+
+// Redibuja solo las zonas de bloqueos (sin tocar lo demás), para que lo que escribes no se pierda
+function refrescarTodosBloqueos(){
+  document.querySelectorAll('#retoPreguntasCont .bloqueos-area').forEach(el => {
+    el.innerHTML = bloqueosHtml(parseInt(el.dataset.idx, 10));
+  });
+}
+
+function toggleBloqueo(idx, optIdx, idDestino, marcado){
+  const p = preguntasRetoEditando[idx];
+  const op = (p.opciones || [])[optIdx];
+  if (op === undefined || op === '__proto__') return;
+  if (!p.bloqueos) p.bloqueos = {};
+  const lista = new Set(tieneClave(p.bloqueos, op) ? p.bloqueos[op] : []);
+  if (marcado) lista.add(idDestino); else lista.delete(idDestino);
+  if (lista.size) p.bloqueos[op] = [...lista]; else delete p.bloqueos[op];
+  if (!Object.keys(p.bloqueos).length) delete p.bloqueos;
+}
+
 let preguntasRetoEditando = [];
 
 function renderPreguntasRetoEditor(){
   const cont = document.getElementById('retoPreguntasCont');
   if (!cont) return;
+  preguntasRetoEditando.forEach(p => { if (!p.id) p.id = nuevoIdPregunta(); });
+  limpiarBloqueosLista(preguntasRetoEditando);
   cont.innerHTML = preguntasRetoEditando.map((p, idx) => {
     const necesitaOpciones = ['radio','checkbox','select'].includes(p.tipo);
     const permiteOtroAplica = ['radio','checkbox'].includes(p.tipo);
     return `
     <div class="pregunta-bloque">
       <div class="fila-tipo">
-        <input type="text" style="flex:1" placeholder="Pregunta ${idx+1}" value="${(p.etiqueta||'').replace(/"/g,'&quot;')}" oninput="preguntasRetoEditando[${idx}].etiqueta=this.value">
+        <input type="text" style="flex:1" placeholder="Pregunta ${idx+1}" value="${(p.etiqueta||'').replace(/"/g,'&quot;')}" onchange="refrescarTodosBloqueos()" oninput="preguntasRetoEditando[${idx}].etiqueta=this.value">
         <button type="button" class="btn-sm btn-mover" title="Subir" onclick="moverPregunta('reto', ${idx}, -1)" ${idx===0?'disabled':''}>▲</button>
         <button type="button" class="btn-sm btn-mover" title="Bajar" onclick="moverPregunta('reto', ${idx}, 1)" ${idx===(preguntasRetoEditando.length-1)?'disabled':''}>▼</button>
         <button type="button" class="btn-sm danger" onclick="quitarPreguntaReto(${idx})">🗑️</button>
@@ -2406,8 +2511,9 @@ function renderPreguntasRetoEditor(){
       ${chipsTipoPregunta('reto', idx, p.tipo, true)}
       ${necesitaOpciones ? `
         <label>Opciones (una por línea)</label>
-        <textarea rows="3" oninput="preguntasRetoEditando[${idx}].opciones=this.value.split('\\n').map(s=>s.trim()).filter(Boolean)">${(p.opciones||[]).join('\n')}</textarea>
+        <textarea rows="3" onchange="refrescarTodosBloqueos()" oninput="actualizarOpcionesPregunta(${idx}, this.value)">${(p.opciones||[]).join('\n')}</textarea>
       ` : ''}
+      ${bloqueosAreaHtml(idx, p)}
       ${permiteOtroAplica ? `
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px">
           <input type="checkbox" style="width:auto;margin:0" ${p.permiteOtro?'checked':''} onchange="preguntasRetoEditando[${idx}].permiteOtro=this.checked">
@@ -2449,7 +2555,7 @@ function cargarRetoParaEditar(id){
   retoIdActual = id;
   document.getElementById('retoTitulo').value = reto.titulo || '';
   document.getElementById('retoDescripcion').value = reto.descripcion || '';
-  preguntasRetoEditando = (Array.isArray(reto.preguntas) ? reto.preguntas : []).map(p => ({ ...p }));
+  preguntasRetoEditando = (Array.isArray(reto.preguntas) ? reto.preguntas : []).map(p => JSON.parse(JSON.stringify(p)));
   renderPreguntasRetoEditor();
   document.getElementById('retoFormTitulo').textContent = `✏️ Editando: ${reto.titulo}`;
   document.getElementById('retoBtnGuardar').textContent = '💾 Guardar cambios';
@@ -2465,7 +2571,7 @@ function clonarReto(id){
   retoIdActual = null; // null = al guardar se crea uno nuevo
   document.getElementById('retoTitulo').value = `${reto.titulo || ''} (copia)`;
   document.getElementById('retoDescripcion').value = reto.descripcion || '';
-  preguntasRetoEditando = (Array.isArray(reto.preguntas) ? reto.preguntas : []).map(p => ({ ...p, opciones: Array.isArray(p.opciones) ? [...p.opciones] : p.opciones }));
+  preguntasRetoEditando = (Array.isArray(reto.preguntas) ? reto.preguntas : []).map(p => JSON.parse(JSON.stringify(p)));
   renderPreguntasRetoEditor();
   document.getElementById('retoFormTitulo').textContent = `📋 Clonando: ${reto.titulo}`;
   document.getElementById('retoBtnGuardar').textContent = '✅ Publicar reto clonado';
@@ -2479,7 +2585,8 @@ async function guardarReto(){
   if (!titulo) { showToast('Ponle un título al reto', 'error'); return; }
   const preguntas = preguntasRetoEditando
     .filter(p => p.etiqueta && p.etiqueta.trim())
-    .map(p => ({ tipo: p.tipo, etiqueta: p.etiqueta.trim(), opciones: p.opciones || [], permiteOtro: !!p.permiteOtro, requerido: p.requerido !== false }));
+    .map(p => ({ id: p.id, tipo: p.tipo, etiqueta: p.etiqueta.trim(), opciones: p.opciones || [], permiteOtro: !!p.permiteOtro, requerido: p.requerido !== false, bloqueos: p.bloqueos ? JSON.parse(JSON.stringify(p.bloqueos)) : undefined }));
+  limpiarBloqueosLista(preguntas); // deja solo bloqueos válidos sobre el orden final
   try {
     const esEdicion = !!retoIdActual;
     const url = esEdicion ? `${SUPABASE_URL}/rest/v1/retos?id=eq.${retoIdActual}` : `${SUPABASE_URL}/rest/v1/retos`;
