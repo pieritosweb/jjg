@@ -587,7 +587,7 @@ async function guardarEdicionRespuestaUsuario(respuestaId){
 }
 
 // ---------- Lógica de bloqueo ----------
-// Una pregunta de "opción única" o "lista desplegable" puede bloquear preguntas que
+// Una pregunta de tipo "opción única" (solo ese tipo) puede bloquear preguntas que
 // vienen DESPUÉS según la opción elegida (reto.preguntas[i].bloqueos = { opción: [ids] }).
 function envolverPregunta(p, idx, valorExistente){
   return `<div class="pregunta-wrap" data-pidx="${idx}">${renderCampoPregunta(p, idx, valorExistente)}<div class="bloqueo-nota">🔒 No aplica según tu respuesta anterior</div></div>`;
@@ -600,8 +600,8 @@ function calcularBloqueadas(){
   reto.preguntas.forEach((p, i) => { if (p.id) idxPorId[p.id] = i; });
   reto.preguntas.forEach((p, idx) => {
     if (bloqueadas.has(idx)) return; // una pregunta bloqueada ya no bloquea a otras
-    if (!p.bloqueos || (p.tipo !== "radio" && p.tipo !== "select")) return;
-    const existe = p.tipo === "select" ? document.getElementById(`preg_${idx}`) : document.querySelector(`input[name="preg_${idx}"]`);
+    if (!p.bloqueos || p.tipo !== "radio") return; // la lógica solo aplica a "opción única"
+    const existe = document.querySelector(`input[name="preg_${idx}"]`);
     if (!existe) return; // el formulario no está en pantalla
     const valor = leerValorPregunta(p, idx);
     const objetivos = Object.prototype.hasOwnProperty.call(p.bloqueos, valor) ? p.bloqueos[valor] : [];

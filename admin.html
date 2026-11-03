@@ -2395,12 +2395,17 @@ function moverPregunta(cual, idx, dir){
 
 function cambiarTipoPregunta(cual, idx, tipo){
   if (cual === 'feedback') { preguntasFeedbackEditando[idx].tipo = tipo; renderPreguntasFeedbackEditor(); }
-  else { preguntasRetoEditando[idx].tipo = tipo; renderPreguntasRetoEditor(); }
+  else {
+    const antes = contarBloqueos(preguntasRetoEditando);
+    preguntasRetoEditando[idx].tipo = tipo;
+    renderPreguntasRetoEditor();
+    if (contarBloqueos(preguntasRetoEditando) < antes) showToast('Se quitaron los bloqueos: solo aplican a "Opción única"', 'error');
+  }
 }
 
 // ---------- Lógica de bloqueo entre preguntas (solo Retos) ----------
 // Cada pregunta tiene un id estable (para que los bloqueos sobrevivan a reordenar o
-// renombrar). Una pregunta de opción única / lista desplegable guarda
+// renombrar). Una pregunta de tipo "opción única" (y solo ese tipo) guarda
 //   bloqueos: { "texto de la opción": [id de pregunta a bloquear, ...] }
 // y solo puede bloquear preguntas que vienen DESPUÉS de ella.
 function nuevoIdPregunta(){ return 'q_' + Math.random().toString(36).slice(2, 9); }
@@ -2419,7 +2424,7 @@ function limpiarBloqueosLista(lista){
   lista.forEach((q, i) => { if (q.id) posPorId[q.id] = i; });
   lista.forEach((q, i) => {
     if (!q.bloqueos) return;
-    if (q.tipo !== 'radio' && q.tipo !== 'select') { quitados += contarBloqueos([q]); delete q.bloqueos; return; }
+    if (q.tipo !== 'radio') { quitados += contarBloqueos([q]); delete q.bloqueos; return; }
     const ops = new Set(q.opciones || []);
     Object.keys(q.bloqueos).forEach(op => {
       const actuales = q.bloqueos[op] || [];
@@ -2467,7 +2472,7 @@ function bloqueosHtml(idx){
 }
 
 function bloqueosAreaHtml(idx, p){
-  if (p.tipo !== 'radio' && p.tipo !== 'select') return '';
+  if (p.tipo !== 'radio') return '';
   return `<div class="bloqueos-area" data-idx="${idx}">${bloqueosHtml(idx)}</div>`;
 }
 
