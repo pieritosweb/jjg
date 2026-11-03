@@ -543,6 +543,8 @@
   /* Menús desplegables nativos: colores y fuente explícitos para que siempre se lean */
   select { color-scheme: light; }
   select option { color: #1f2d1f; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+  .btn-mover { padding: 4px 9px; }
+  .btn-mover:disabled { opacity: 0.3; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -2363,6 +2365,22 @@ function chipsTipoPregunta(cual, idx, actual, conImagen){
     .map(t => `<button type="button" class="tipo-chip${t.v === actual ? ' activo' : ''}" onclick="cambiarTipoPregunta('${cual}', ${idx}, '${t.v}')">${t.t}</button>`)
     .join('') + `</div>`;
 }
+// Sube o baja una pregunta (dir = -1 sube, 1 baja). Mantiene la pregunta en el
+// mismo lugar de la pantalla para poder seguir presionando el mismo botón.
+function moverPregunta(cual, idx, dir){
+  const feedback = cual === 'feedback';
+  const lista = feedback ? preguntasFeedbackEditando : preguntasRetoEditando;
+  const cont = document.getElementById(feedback ? 'feedbackPreguntasCont' : 'retoPreguntasCont');
+  const j = idx + dir;
+  if (j < 0 || j >= lista.length) return;
+  const topAntes = cont && cont.children[idx] ? cont.children[idx].getBoundingClientRect().top : null;
+  [lista[idx], lista[j]] = [lista[j], lista[idx]];
+  if (feedback) renderPreguntasFeedbackEditor(); else renderPreguntasRetoEditor();
+  if (topAntes !== null && cont.children[j]) {
+    window.scrollBy(0, cont.children[j].getBoundingClientRect().top - topAntes);
+  }
+}
+
 function cambiarTipoPregunta(cual, idx, tipo){
   if (cual === 'feedback') { preguntasFeedbackEditando[idx].tipo = tipo; renderPreguntasFeedbackEditor(); }
   else { preguntasRetoEditando[idx].tipo = tipo; renderPreguntasRetoEditor(); }
@@ -2380,6 +2398,8 @@ function renderPreguntasRetoEditor(){
     <div class="pregunta-bloque">
       <div class="fila-tipo">
         <input type="text" style="flex:1" placeholder="Pregunta ${idx+1}" value="${(p.etiqueta||'').replace(/"/g,'&quot;')}" oninput="preguntasRetoEditando[${idx}].etiqueta=this.value">
+        <button type="button" class="btn-sm btn-mover" title="Subir" onclick="moverPregunta('reto', ${idx}, -1)" ${idx===0?'disabled':''}>▲</button>
+        <button type="button" class="btn-sm btn-mover" title="Bajar" onclick="moverPregunta('reto', ${idx}, 1)" ${idx===(preguntasRetoEditando.length-1)?'disabled':''}>▼</button>
         <button type="button" class="btn-sm danger" onclick="quitarPreguntaReto(${idx})">🗑️</button>
       </div>
       <label>Tipo de respuesta</label>
@@ -2925,6 +2945,8 @@ function renderPreguntasFeedbackEditor(){
     <div class="pregunta-bloque">
       <div class="fila-tipo">
         <input type="text" style="flex:1" placeholder="Pregunta ${idx+1}" value="${(p.etiqueta||'').replace(/"/g,'&quot;')}" oninput="preguntasFeedbackEditando[${idx}].etiqueta=this.value">
+        <button type="button" class="btn-sm btn-mover" title="Subir" onclick="moverPregunta('feedback', ${idx}, -1)" ${idx===0?'disabled':''}>▲</button>
+        <button type="button" class="btn-sm btn-mover" title="Bajar" onclick="moverPregunta('feedback', ${idx}, 1)" ${idx===(preguntasFeedbackEditando.length-1)?'disabled':''}>▼</button>
         <button type="button" class="btn-sm danger" onclick="quitarPreguntaFeedback(${idx})">🗑️</button>
       </div>
       <label>Tipo de respuesta</label>
