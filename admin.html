@@ -534,6 +534,15 @@
     th, td { padding: 6px 8px !important; }
   }
   .mobile-nav { display: none; }
+
+  /* Selector de tipo de pregunta (botones) */
+  .tipo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .tipo-chip { padding: 6px 12px; border: 1.5px solid #ddd; border-radius: 20px; background: #fff; color: var(--gris); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .tipo-chip:hover { border-color: var(--verde-hoja); color: var(--verde-hoja); }
+  .tipo-chip.activo { background: var(--verde-hoja); border-color: var(--verde-hoja); color: #fff; }
+  /* Menús desplegables nativos: colores y fuente explícitos para que siempre se lean */
+  select { color-scheme: light; }
+  select option { color: #1f2d1f; background: #fff; font-family: Arial, Helvetica, sans-serif; }
 </style>
 </head>
 <body>
@@ -2339,6 +2348,26 @@ async function renderRetos(){
     tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Error al cargar retos</td></tr>';
   }
 }
+const TIPOS_PREGUNTA = [
+  { v: 'texto', t: 'Texto corto' },
+  { v: 'parrafo', t: 'Párrafo' },
+  { v: 'radio', t: 'Opción única' },
+  { v: 'checkbox', t: 'Casillas de verificación' },
+  { v: 'select', t: 'Lista desplegable' },
+  { v: 'imagen', t: 'Imagen con comentario' }
+];
+// Botones en vez de un <select> nativo: el menú nativo del navegador se veía vacío
+function chipsTipoPregunta(cual, idx, actual, conImagen){
+  return `<div class="tipo-chips">` + TIPOS_PREGUNTA
+    .filter(t => conImagen || t.v !== 'imagen')
+    .map(t => `<button type="button" class="tipo-chip${t.v === actual ? ' activo' : ''}" onclick="cambiarTipoPregunta('${cual}', ${idx}, '${t.v}')">${t.t}</button>`)
+    .join('') + `</div>`;
+}
+function cambiarTipoPregunta(cual, idx, tipo){
+  if (cual === 'feedback') { preguntasFeedbackEditando[idx].tipo = tipo; renderPreguntasFeedbackEditor(); }
+  else { preguntasRetoEditando[idx].tipo = tipo; renderPreguntasRetoEditor(); }
+}
+
 let preguntasRetoEditando = [];
 
 function renderPreguntasRetoEditor(){
@@ -2354,14 +2383,7 @@ function renderPreguntasRetoEditor(){
         <button type="button" class="btn-sm danger" onclick="quitarPreguntaReto(${idx})">🗑️</button>
       </div>
       <label>Tipo de respuesta</label>
-      <select onchange="preguntasRetoEditando[${idx}].tipo=this.value; renderPreguntasRetoEditor()">
-        <option value="texto" ${p.tipo==='texto'?'selected':''}>Texto corto</option>
-        <option value="parrafo" ${p.tipo==='parrafo'?'selected':''}>Párrafo</option>
-        <option value="radio" ${p.tipo==='radio'?'selected':''}>Opción única</option>
-        <option value="checkbox" ${p.tipo==='checkbox'?'selected':''}>Casillas de verificación</option>
-        <option value="select" ${p.tipo==='select'?'selected':''}>Lista desplegable</option>
-        <option value="imagen" ${p.tipo==='imagen'?'selected':''}>Imagen con comentario</option>
-      </select>
+      ${chipsTipoPregunta('reto', idx, p.tipo, true)}
       ${necesitaOpciones ? `
         <label>Opciones (una por línea)</label>
         <textarea rows="3" oninput="preguntasRetoEditando[${idx}].opciones=this.value.split('\\n').map(s=>s.trim()).filter(Boolean)">${(p.opciones||[]).join('\n')}</textarea>
@@ -2906,13 +2928,7 @@ function renderPreguntasFeedbackEditor(){
         <button type="button" class="btn-sm danger" onclick="quitarPreguntaFeedback(${idx})">🗑️</button>
       </div>
       <label>Tipo de respuesta</label>
-      <select onchange="preguntasFeedbackEditando[${idx}].tipo=this.value; renderPreguntasFeedbackEditor()">
-        <option value="texto" ${p.tipo==='texto'?'selected':''}>Texto corto</option>
-        <option value="parrafo" ${p.tipo==='parrafo'?'selected':''}>Párrafo</option>
-        <option value="radio" ${p.tipo==='radio'?'selected':''}>Opción única</option>
-        <option value="checkbox" ${p.tipo==='checkbox'?'selected':''}>Casillas de verificación</option>
-        <option value="select" ${p.tipo==='select'?'selected':''}>Lista desplegable</option>
-      </select>
+      ${chipsTipoPregunta('feedback', idx, p.tipo, false)}
       ${necesitaOpciones ? `
         <label>Opciones (una por línea)</label>
         <textarea rows="3" oninput="preguntasFeedbackEditando[${idx}].opciones=this.value.split('\\n').map(s=>s.trim()).filter(Boolean)">${(p.opciones||[]).join('\n')}</textarea>
