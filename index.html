@@ -733,6 +733,10 @@
      Para ajustar, cambia solo este número (0.9 = 90%). */
   @media (max-width: 600px) { html { zoom: 0.9; } }
   .qty-btn { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+  /* Coordinar bloqueado mientras hay un canje de puntos pendiente */
+  .wsp-contact-btn.bloqueado-canje { background: #c4c4c4 !important; color: #fff !important; cursor: not-allowed; box-shadow: none; opacity: 0.85; }
+  .wsp-contact-btn.bloqueado-canje:hover { opacity: 0.85; }
+  .coordinar-aviso { font-size: 0.78rem; color: var(--gris); text-align: center; margin: 2px 0 8px; }
 </style>
 
   <!-- FAVICON -->
@@ -1340,7 +1344,7 @@ function cambiarQty(e){const t=itemSeleccionado?.pack_size>1?Math.floor((itemSel
         <input type="text" id="carritoCodigoInput" placeholder="🎟️ Cupón de descuento" style="flex:1;text-transform:uppercase;padding:9px 12px;border:1.5px solid #ccc;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:0.85rem">
         <button onclick="aplicarCodigoDescuentoCarrito()" style="width:auto;padding:9px 16px;background:var(--verde-hoja);color:#fff;border:none;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer">Aplicar</button>
       </div><div id="carritoCodigoMsg" style="font-size:0.72rem;margin-top:4px"></div>`;
-    })()}</div>\n    <div id="carritoPuntosPreviewWrap">${l}</div>\n    ${u}\n    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">${m}</div>\n    <p style="font-size:0.72rem;color:var(--gris);margin-top:8px;text-align:center;line-height:1.4">\n      Coordina el pago por WhatsApp para confirmar tu reserva 🌿\n    </p>`;cargarPuntosCarritoTotal();}function carritoCapPorLinea(l){
+    })()}</div>\n    <div id="carritoPuntosPreviewWrap">${l}</div>\n    ${u}\n    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">${m}</div>\n    <p style="font-size:0.72rem;color:var(--gris);margin-top:8px;text-align:center;line-height:1.4">\n      Coordina el pago por WhatsApp para confirmar tu reserva 🌿\n    </p>`;cargarPuntosCarritoTotal();actualizarBotonesCoordinar();}function carritoCapPorLinea(l){
   if (l.flash_sale_slug) return 0;
   const item = items.find(i => i.id === l.item_id);
   if (item?.excluido_de_canje) return 0;
@@ -1479,8 +1483,9 @@ function aplicarEstadoVisualCanje(aplicado){
     btnAplicar.style.cursor = 'pointer';
     btnRevertir.style.display = 'none';
   }
+  actualizarBotonesCoordinar();
 }
-async function revertirCanjeCarrito(){
+async function _revertirCanjeCarritoInterno(){
   const lineasConCanje = carritoLineasActivas.filter(l => (l.puntos_canjeados || 0) > 0);
   if (!lineasConCanje.length) { aplicarEstadoVisualCanje(false); return; }
 
@@ -1504,6 +1509,66 @@ async function revertirCanjeCarrito(){
     if (btnRevertir) { btnRevertir.disabled = false; btnRevertir.textContent = '↩️ Revertir'; }
   }
 }
+
+// ---------- Botones "Coordinar con Ana/Piero" vs. canje de puntos ----------
+// Mientras el canje esté PENDIENTE (casilla marcada pero sin tocar "Aplicar canje") o se esté
+// aplicando / revirtiendo, los botones de coordinar quedan bloqueados en gris. Así el mensaje de
+// WhatsApp nunca sale con totales que no incluyen el descuento que la persona cree haber usado.
+let canjeEnCurso = false;
+
+function canjePendiente(){
+  if (canjeEnCurso) return true;
+  const wrap = document.getElementById('carritoCanjeWrap');
+  const cb = document.getElementById('carritoCanjeCheckbox');
+  if (!wrap || !cb || wrap.style.display === 'none' || !cb.checked) return false;
+  const yaAplicado = carritoLineasActivas.reduce((a, l) => a + (l.puntos_canjeados || 0), 0);
+  return yaAplicado === 0;   // marcó la casilla pero todavía no aplicó el canje
+}
+
+function actualizarBotonesCoordinar(){
+  const botones = document.querySelectorAll('#modalCarrito .wsp-contact-btn');
+  if (!botones.length) return;
+  const bloquear = canjePendiente();
+  botones.forEach(b => {
+    b.classList.toggle('bloqueado-canje', bloquear);
+    b.setAttribute('aria-disabled', bloquear ? 'true' : 'false');
+    b.tabIndex = bloquear ? -1 : 0;
+    // sin href mientras está bloqueado: tampoco se puede abrir con clic derecho / nueva pestaña
+    if (bloquear && b.hasAttribute('href')) { b.dataset.href = b.getAttribute('href'); b.removeAttribute('href'); }
+    if (!bloquear && b.dataset.href) { b.setAttribute('href', b.dataset.href); delete b.dataset.href; }
+  });
+  let aviso = document.getElementById('coordinarAviso');
+  if (bloquear) {
+    if (!aviso) {
+      aviso = document.createElement('div');
+      aviso.id = 'coordinarAviso';
+      aviso.className = 'coordinar-aviso';
+      botones[0].parentNode.insertBefore(aviso, botones[0]);
+    }
+    aviso.textContent = canjeEnCurso ? '⏳ Un momento…' : 'Toca "Aplicar canje" para poder coordinar (o desmarca la casilla de puntos).';
+  } else if (aviso) {
+    aviso.remove();
+  }
+}
+
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('.wsp-contact-btn.bloqueado-canje');
+  if (!a) return;
+  e.preventDefault(); e.stopPropagation();
+  showToast(canjeEnCurso ? 'Un momento, estamos actualizando tu pedido…' : 'Primero toca "Aplicar canje" (o desmarca la casilla de puntos)', 'error');
+}, true);
+
+async function aplicarCanjeCarritoTotal(){
+  canjeEnCurso = true; actualizarBotonesCoordinar();
+  try { await _aplicarCanjeCarritoTotalInterno(); }
+  finally { canjeEnCurso = false; actualizarBotonesCoordinar(); }
+}
+async function revertirCanjeCarrito(){
+  canjeEnCurso = true; actualizarBotonesCoordinar();
+  try { await _revertirCanjeCarritoInterno(); }
+  finally { canjeEnCurso = false; actualizarBotonesCoordinar(); }
+}
+
 function carritoCanjeMaximo(){
   const yaCanjeadoEnCarrito = carritoLineasActivas.reduce((a, l) => a + (l.puntos_canjeados || 0), 0);
   const capTotal = carritoLineasActivas.reduce((a, l) => a + carritoCapPorLinea(l), 0);
@@ -1516,7 +1581,11 @@ function actualizarCarritoCanjeUI(){
   if (!wrap) return;
   const yaAplicadoReal = carritoLineasActivas.reduce((a, l) => a + (l.puntos_canjeados || 0), 0);
   const max = carritoCanjeMaximo();
-  if (max < 1 && yaAplicadoReal === 0) { wrap.style.display = 'none'; carritoCanjeSeleccionado = 0; return; }
+  if (max < 1 && yaAplicadoReal === 0) {
+    wrap.style.display = 'none'; carritoCanjeSeleccionado = 0;
+    const cbx = document.getElementById('carritoCanjeCheckbox'); if (cbx) cbx.checked = false;   // sin sección visible no puede quedar nada pendiente
+    actualizarBotonesCoordinar(); return;
+  }
   wrap.style.display = 'block';
   // Si ya hay algo aplicado de verdad en la base de datos, nunca lo bajamos
   // a la fuerza solo porque el tope recalculado sea más chico — eso solo
@@ -1536,6 +1605,7 @@ function actualizarCarritoCanjeUI(){
       ? `🎉 Descuento de S/ ${carritoCanjeSeleccionado} — nuevo total: <strong style="color:#6a1b9a;font-size:1.25em">S/ ${(totalActual - carritoCanjeSeleccionado).toFixed(2)}</strong><div style="font-size:0.72rem;color:var(--gris);font-weight:400;margin-top:2px">Los productos usados en el canje no sumarán nuevos JarJar Puntos</div>`
       : '';
   }
+  actualizarBotonesCoordinar();
 }
 function toggleCarritoCanjeUI(){
   const checked = document.getElementById('carritoCanjeCheckbox').checked;
@@ -1583,7 +1653,7 @@ function cambiarCarritoCanje(delta){
   carritoCanjeSeleccionado = nuevo;
   actualizarCarritoCanjeUI();
 }
-async function aplicarCanjeCarritoTotal(){
+async function _aplicarCanjeCarritoTotalInterno(){
   if (!carritoLineasActivas.length) return;
   const total = carritoCanjeSeleccionado;
 
