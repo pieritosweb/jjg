@@ -783,8 +783,8 @@
 <!-- ===== BANNER CYBER DAYS (para quitarlo: borra este bloque, el CSS ".banner-cyber" y los 2 archivos cyber-days-*.webp) ===== -->
 <div class="banner-cyber-wrap">
   <picture class="banner-cyber">
-    <source media="(max-width: 600px)" srcset="/cyber-days-movil.webp" width="1080" height="600">
-    <img src="/cyber-days-desktop.webp" width="1800" height="440" alt="Cyber Days: ofertas en plantas, luces de crecimiento y termohigrómetros" decoding="async" onerror="this.closest('.banner-cyber-wrap').style.display='none'">
+    <source media="(max-width: 600px)" srcset="/cyber-days-movil.webp" width="1080" height="620">
+    <img src="/cyber-days-desktop.webp" width="1800" height="440" alt="Cyber Days: ofertas. Usa el cupón HACECALOR15 o utiliza tus Jar Jar Puntos" decoding="async" onerror="this.closest('.banner-cyber-wrap').style.display='none'">
   </picture>
 </div>
 <!-- ===== FIN BANNER CYBER DAYS ===== -->
@@ -1398,7 +1398,10 @@ async function aplicarCodigoDescuentoCarrito(){
     await renderHistorial();
   } else if (ultimoError?.startsWith('CUPON_YA_USADO')) {
     msgEl.style.color = '#c0392b';
-    msgEl.textContent = '❌ Ya usaste este cupón antes — es de un solo uso por persona.';
+    const limite = parseInt((ultimoError.split('|')[1] || ''), 10);   // el servidor manda CUPON_YA_USADO|N
+    msgEl.textContent = limite > 1
+      ? `❌ Ya usaste este cupón el máximo de veces permitido (${limite} por persona).`
+      : '❌ Ya usaste este cupón antes — es de un solo uso por persona.';
   } else if (ultimoError?.startsWith('CUPON_INACTIVO')) {
     msgEl.style.color = '#c0392b';
     msgEl.textContent = '❌ Este cupón ya no está activo.';

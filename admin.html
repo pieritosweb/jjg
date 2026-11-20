@@ -553,6 +553,23 @@
   .pregunta-bloque .bloqueo-chip input { width: auto; margin: 0; }
   .pregunta-bloque .bloqueo-chip.marcado { border-color: #c0392b; background: #fdecea; color: #c0392b; font-weight: 600; }
   .bloqueo-vacio { font-size: 0.75rem; color: var(--gris); margin-top: 4px; }
+  /* Cupones: usos por persona y selector de fecha/hora */
+  .usos-wrap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .usos-wrap input[type=text] { width: 92px; text-align: center; font-weight: 700; font-size: 1.05rem; }
+  .usos-wrap input[type=text]:disabled { background: #f0f0f0; color: #aaa; }
+  .chk-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; margin: 0; }
+  .chk-inline input { width: auto; margin: 0; }
+  .ayuda-campo { font-size: 0.74rem; color: var(--gris); margin-top: 6px; line-height: 1.4; }
+  .celda-edit { cursor: pointer; }
+  .celda-edit:hover { background: #f4f1ea; }
+  .picker-fh { background: #fff; border: 1px solid #e6e1d8; border-radius: 12px; padding: 12px; }
+  .picker-fila { display: flex; gap: 8px; flex-wrap: wrap; }
+  .picker-fila input[type=date], .picker-fila select { flex: 1; min-width: 140px; padding: 9px 10px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; background: #fff; }
+  .picker-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip-rapido { border: 1.5px solid #ddd; background: #fff; border-radius: 20px; padding: 4px 12px; font-size: 0.76rem; font-weight: 600; color: var(--gris); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .chip-rapido:hover { border-color: var(--verde-hoja); color: var(--verde-hoja); }
+  .picker-resumen { margin-top: 10px; font-size: 0.82rem; font-weight: 600; min-height: 1.2em; }
+  .form-group label.chk-inline { text-transform: none; letter-spacing: normal; font-size: 0.88rem; font-weight: 600; color: #1a2e1c; }
 </style>
 </head>
 <body>
@@ -1141,28 +1158,25 @@
         <div class="form-group full">
           <label>¿Dónde aplica?</label>
           <div style="margin-bottom:6px">
-            <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:0.85rem">
+            <label class="chk-inline">
               <input type="checkbox" id="cuponTodaLaTienda" checked onchange="toggleCategoriasCupon()"> Toda la tienda
             </label>
           </div>
           <div id="cuponCategoriasCont" style="display:none;flex-wrap:wrap;gap:10px 16px"></div>
         </div>
         <div class="form-group">
-          <label>Uso por usuario</label>
-          <select id="cuponUsoUsuario">
-            <option value="unico">Una sola vez por persona</option>
-            <option value="multiple">Múltiples veces por persona</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Expiración</label>
-          <div style="display:flex;gap:8px;align-items:center">
-            <select id="cuponExpiraModo" onchange="toggleHorasExpiracionCupon()" style="flex:1">
-              <option value="nunca">No expira</option>
-              <option value="horas">Expira en (horas)</option>
-            </select>
-            <input type="number" id="cuponHorasExpiracion" min="1" placeholder="Ej: 2" style="width:90px;display:none">
+          <label>Usos por persona</label>
+          <div class="usos-wrap">
+            <input type="text" id="cuponUsosPorUsuario" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="1" placeholder="1" autocomplete="off"
+                   oninput="this.value=this.value.replace(/\D/g,'')">
+            <label class="chk-inline"><input type="checkbox" id="cuponSinLimite" onchange="toggleSinLimiteCupon()"> Sin límite</label>
           </div>
+          <div class="ayuda-campo">Cuántas veces puede usarlo cada persona. Un pedido con varios productos cuenta como 1 uso.</div>
+        </div>
+        <div class="form-group full">
+          <label>Expiración</label>
+          <label class="chk-inline"><input type="checkbox" id="cuponNoExpira" checked onchange="toggleNoExpiraCupon()"> No expira</label>
+          <div id="cuponExpiraPicker" style="display:none;margin-top:8px"></div>
         </div>
       </div>
       <button class="btn-guardar" onclick="guardarCupon()">🎟️ Crear cupón</button>
@@ -1188,8 +1202,8 @@
         <th>Descripción</th>
         <th style="width:110px">Descuento</th>
         <th>Aplica a</th>
-        <th style="width:90px">Uso</th>
-        <th style="width:100px">Vence</th>
+        <th style="width:130px">Usos por persona</th>
+        <th style="width:190px">Vence</th>
         <th style="width:80px">Activo</th>
         <th style="width:140px">Acciones</th>
       </tr></thead>
@@ -3408,9 +3422,88 @@ function toggleCategoriasCupon(){
   document.getElementById('cuponCategoriasCont').style.display = todaLaTienda ? 'none' : 'flex';
 }
 
-function toggleHorasExpiracionCupon(){
-  const modo = document.getElementById('cuponExpiraModo').value;
-  document.getElementById('cuponHorasExpiracion').style.display = modo === 'horas' ? 'block' : 'none';
+// ---------- Fecha y hora (hora de Lima, cada 15 minutos) ----------
+const TZ_LIMA = 'America/Lima';   // UTC-5 todo el año (Perú no tiene horario de verano)
+
+function partesLima(d){
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: TZ_LIMA, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const p = Object.fromEntries(f.formatToParts(d).map(x => [x.type, x.value]));
+  return { fecha: `${p.year}-${p.month}-${p.day}`, hora: `${p.hour}:${p.minute}` };
+}
+function etiquetaHora(hhmm){
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'a. m.' : 'p. m.'}`;
+}
+function opcionesHora(){
+  let o = '';
+  for (let h = 0; h < 24; h++) for (let m = 0; m < 60; m += 15) {
+    const v = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    o += `<option value="${v}">${etiquetaHora(v)}</option>`;
+  }
+  return o;
+}
+const fechaHoraAIso = (fecha, hora) => new Date(`${fecha}T${hora}:00-05:00`).toISOString();
+const redondearArriba15 = d => new Date(Math.ceil(d.getTime() / 900000) * 900000);
+
+function pickerFechaHoraHtml(p){
+  return `<div class="picker-fh">
+    <div class="picker-fila">
+      <input type="date" id="${p}Fecha" min="${partesLima(new Date()).fecha}" onchange="actualizarResumenPicker('${p}')">
+      <select id="${p}Hora" onchange="actualizarResumenPicker('${p}')">${opcionesHora()}</select>
+    </div>
+    <div class="picker-rapidos">
+      <button type="button" class="chip-rapido" onclick="pickerRapido('${p}','h2')">En 2 horas</button>
+      <button type="button" class="chip-rapido" onclick="pickerRapido('${p}','h24')">En 24 horas</button>
+      <button type="button" class="chip-rapido" onclick="pickerRapido('${p}','hoy')">Hoy 11:45 p. m.</button>
+      <button type="button" class="chip-rapido" onclick="pickerRapido('${p}','manana')">Mañana 11:45 p. m.</button>
+    </div>
+    <div class="picker-resumen" id="${p}Resumen"></div>
+  </div>`;
+}
+function pickerEstablecer(p, iso){
+  const { fecha, hora } = partesLima(new Date(iso));
+  document.getElementById(`${p}Fecha`).value = fecha;
+  const sel = document.getElementById(`${p}Hora`);
+  sel.querySelectorAll('option[data-exacta]').forEach(o => o.remove());
+  if (![...sel.options].some(o => o.value === hora)) {   // hora que no cae en cuarto de hora: se conserva tal cual
+    const o = document.createElement('option');
+    o.value = hora; o.dataset.exacta = '1'; o.textContent = `${etiquetaHora(hora)} (actual)`;
+    const despues = [...sel.options].find(x => x.value > hora);
+    sel.insertBefore(o, despues || null);
+  }
+  sel.value = hora;
+  actualizarResumenPicker(p);
+}
+function pickerLeerIso(p){
+  const f = document.getElementById(`${p}Fecha`).value, h = document.getElementById(`${p}Hora`).value;
+  return f && h ? fechaHoraAIso(f, h) : null;
+}
+function actualizarResumenPicker(p){
+  const el = document.getElementById(`${p}Resumen`); if (!el) return;
+  const iso = pickerLeerIso(p);
+  if (!iso) { el.style.color = 'var(--gris)'; el.textContent = 'Elige el día y la hora'; return; }
+  const txt = new Date(iso).toLocaleString('es-PE', { timeZone: TZ_LIMA, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const pasada = new Date(iso) <= new Date();
+  el.style.color = pasada ? '#c0392b' : 'var(--verde-oscuro)';
+  el.textContent = pasada ? `⚠️ Esa fecha ya pasó (${txt})` : `Vence el ${txt} (hora de Lima)`;
+}
+function pickerRapido(p, tipo){
+  const ahora = new Date();
+  if (tipo === 'h2') return pickerEstablecer(p, redondearArriba15(new Date(ahora.getTime() + 2 * 3600000)));
+  if (tipo === 'h24') return pickerEstablecer(p, redondearArriba15(new Date(ahora.getTime() + 24 * 3600000)));
+  const dia = tipo === 'hoy' ? ahora : new Date(ahora.getTime() + 24 * 3600000);
+  pickerEstablecer(p, fechaHoraAIso(partesLima(dia).fecha, '23:45'));
+}
+
+document.getElementById('cuponExpiraPicker').innerHTML = pickerFechaHoraHtml('cuponNuevo');
+
+function toggleSinLimiteCupon(){
+  document.getElementById('cuponUsosPorUsuario').disabled = document.getElementById('cuponSinLimite').checked;
+}
+function toggleNoExpiraCupon(){
+  const noExpira = document.getElementById('cuponNoExpira').checked;
+  document.getElementById('cuponExpiraPicker').style.display = noExpira ? 'none' : 'block';
+  if (!noExpira && !document.getElementById('cuponNuevoFecha').value) pickerRapido('cuponNuevo', 'hoy');
 }
 
 document.getElementById('cuponTipo')?.addEventListener('change', e => {
@@ -3424,43 +3517,48 @@ async function guardarCupon(){
   const valor = parseFloat(document.getElementById('cuponValor').value);
   const todaLaTienda = document.getElementById('cuponTodaLaTienda').checked;
   const categorias = todaLaTienda ? [] : Array.from(document.querySelectorAll('.cupon-categoria-check:checked')).map(c => c.value);
-  const uso_unico_por_usuario = document.getElementById('cuponUsoUsuario').value === 'unico';
-  const expiraModo = document.getElementById('cuponExpiraModo').value;
-  const horasExpiracion = parseInt(document.getElementById('cuponHorasExpiracion').value);
+  const sinLimite = document.getElementById('cuponSinLimite').checked;
+  const usos = parseInt(document.getElementById('cuponUsosPorUsuario').value, 10);
+  const noExpira = document.getElementById('cuponNoExpira').checked;
 
   if (!descripcion) return showToast('Ingresa la temática del descuento', 'error');
   if (!codigo) return showToast('Ingresa o genera un código', 'error');
   if (isNaN(valor) || valor <= 0) return showToast('Ingresa un valor de descuento válido', 'error');
   if (!todaLaTienda && !categorias.length) return showToast('Elige al menos una categoría, o marca "Toda la tienda"', 'error');
-  if (expiraModo === 'horas' && (isNaN(horasExpiracion) || horasExpiracion <= 0)) return showToast('Ingresa un número de horas válido', 'error');
+  if (!sinLimite && (isNaN(usos) || usos < 1)) return showToast('Ingresa cuántos usos por persona (1 o más), o marca "Sin límite"', 'error');
 
   let fecha_expiracion = null;
-  if (expiraModo === 'horas') {
-    const fecha = new Date();
-    fecha.setHours(fecha.getHours() + horasExpiracion);
-    fecha_expiracion = fecha.toISOString();
+  if (!noExpira) {
+    fecha_expiracion = pickerLeerIso('cuponNuevo');
+    if (!fecha_expiracion) return showToast('Elige el día y la hora de expiración', 'error');
+    if (new Date(fecha_expiracion) <= new Date()) return showToast('La fecha de expiración ya pasó', 'error');
   }
 
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/codigos_descuento`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ codigo, descripcion, tipo, valor, categorias, uso_unico_por_usuario, fecha_expiracion })
+      body: JSON.stringify({ codigo, descripcion, tipo, valor, categorias, usos_por_usuario: sinLimite ? null : usos, fecha_expiracion })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      showToast(err.message?.includes('duplicate') ? 'Ese código ya existe, prueba otro' : 'Error al crear el cupón', 'error');
+      const msg = err.message || '';
+      showToast(msg.includes('duplicate') ? 'Ese código ya existe, prueba otro'
+        : msg.includes('usos_por_usuario') ? 'Falta correr el SQL "cupones_usos_por_usuario" en Supabase'
+        : 'Error al crear el cupón', 'error');
       return;
     }
     document.getElementById('cuponDescripcion').value = '';
     document.getElementById('cuponCodigo').value = '';
     document.getElementById('cuponValor').value = '';
     document.getElementById('cuponTodaLaTienda').checked = true;
-    document.getElementById('cuponUsoUsuario').value = 'unico';
-    document.getElementById('cuponExpiraModo').value = 'nunca';
-    document.getElementById('cuponHorasExpiracion').value = '';
+    document.getElementById('cuponUsosPorUsuario').value = '1';
+    document.getElementById('cuponSinLimite').checked = false;
+    document.getElementById('cuponNoExpira').checked = true;
+    document.getElementById('cuponNuevoFecha').value = '';
     toggleCategoriasCupon();
-    toggleHorasExpiracionCupon();
+    toggleSinLimiteCupon();
+    toggleNoExpiraCupon();
     renderCupones();
     showToast(`Cupón ${codigo} creado 🎟️`, 'success');
   } catch (e) {
@@ -3489,8 +3587,8 @@ async function renderCupones(){
         <td style="font-size:0.85rem">${c.descripcion}</td>
         <td>${c.tipo === 'porcentaje' ? c.valor + '%' : 'S/ ' + c.valor}</td>
         <td style="font-size:0.8rem">${c.categorias.length ? c.categorias.join(', ') : 'Toda la tienda'}</td>
-        <td style="font-size:0.78rem">${c.uso_unico_por_usuario ? '1 por persona' : 'Múltiple'}</td>
-        <td style="font-size:0.78rem;cursor:pointer" onclick="editarExpiracionCupon(${c.id}, '${c.codigo}', ${c.fecha_expiracion ? `'${c.fecha_expiracion}'` : 'null'})" title="Click para editar">${c.fecha_expiracion ? new Date(c.fecha_expiracion).toLocaleString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'Nunca'} ✏️</td>
+        <td class="celda-edit" style="font-size:0.82rem" onclick="editarCuponCampo(${c.id}, 'usos')" title="Click para editar">${textoUsosCupon(c)} ✏️</td>
+        <td class="celda-edit" style="font-size:0.78rem;white-space:nowrap" onclick="editarCuponCampo(${c.id}, 'vence')" title="Click para editar">${textoVenceCupon(c)} ✏️</td>
         <td><span class="badge ${c.activo ? 'disponible' : 'agotado'}" style="cursor:pointer" onclick="toggleCuponActivo(${c.id}, ${c.activo})">${c.activo ? '✅ Sí' : '⏸️ No'}</span></td>
         <td>
           <button class="btn-sm" style="margin-bottom:4px" onclick="verUsuariosCupon(${c.id}, '${c.codigo}')">👥 Usuarios</button>
@@ -3499,7 +3597,7 @@ async function renderCupones(){
 
     document.getElementById('cuponReporteSelect').innerHTML = cuponesData.map(c => `<option value="${c.codigo}">${c.codigo} — ${c.descripcion}</option>`).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Error al cargar</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Error al cargar</td></tr>';
   }
 }
 
@@ -3512,31 +3610,89 @@ async function toggleCuponActivo(id, activoActual){
   renderCupones();
 }
 
-async function editarExpiracionCupon(id, codigo, fechaActual){
-  let mensaje = `Editar expiración de "${codigo}"\n\nEscribe cuántas HORAS desde ahora quieres que expire, o 0 para que no expire nunca.`;
-  if (fechaActual) mensaje += `\n\n(Vencimiento actual: ${new Date(fechaActual).toLocaleString('es-PE')})`;
+function usosDeCupon(c){
+  return c.usos_por_usuario !== undefined ? c.usos_por_usuario : (c.uso_unico_por_usuario ? 1 : null);   // null = sin límite
+}
+function textoUsosCupon(c){
+  const u = usosDeCupon(c);
+  return u === null ? 'Sin límite' : `${u} ${u === 1 ? 'vez' : 'veces'}`;
+}
+function textoVenceCupon(c){
+  if (!c.fecha_expiracion) return 'Nunca';
+  const d = new Date(c.fecha_expiracion);
+  const txt = d.toLocaleString('es-PE', { timeZone: TZ_LIMA, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d <= new Date() ? `<span style="color:#c0392b;font-weight:700">Vencido</span><br>${txt}` : txt;
+}
 
-  const horasTexto = prompt(mensaje, '');
-  if (horasTexto === null) return; // cancelado
+// ---------- Editar usos o vencimiento desde la tabla ----------
+let cuponCampoEditando = null;
 
-  const horas = parseFloat(horasTexto);
-  if (isNaN(horas) || horas < 0) return showToast('Ingresa un número de horas válido', 'error');
-
-  let fecha_expiracion = null;
-  if (horas > 0) {
-    const fecha = new Date();
-    fecha.setHours(fecha.getHours() + horas);
-    fecha_expiracion = fecha.toISOString();
+function editarCuponCampo(id, modo){
+  const c = cuponesData.find(x => x.id === id);
+  if (!c) return;
+  cuponCampoEditando = { id, modo };
+  const cuerpo = document.getElementById('cuponCampoCuerpo');
+  if (modo === 'usos') {
+    const u = usosDeCupon(c);
+    document.getElementById('cuponCampoTitulo').textContent = `Usos por persona — ${c.codigo}`;
+    cuerpo.innerHTML = `<div class="form-group">
+      <label>Cuántas veces puede usarlo cada persona</label>
+      <div class="usos-wrap">
+        <input type="text" id="cuponEditUsos" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="${u === null ? '1' : u}" ${u === null ? 'disabled' : ''} autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,'')">
+        <label class="chk-inline"><input type="checkbox" id="cuponEditSinLimite" ${u === null ? 'checked' : ''} onchange="document.getElementById('cuponEditUsos').disabled=this.checked"> Sin límite</label>
+      </div>
+      <div class="ayuda-campo">Un pedido con varios productos cuenta como 1 uso. Si bajas el número, quien ya llegó al nuevo límite no podrá usarlo más.</div>
+    </div>`;
+  } else {
+    document.getElementById('cuponCampoTitulo').textContent = `Vencimiento — ${c.codigo}`;
+    cuerpo.innerHTML = `<label class="chk-inline"><input type="checkbox" id="cuponEditNoExpira" ${c.fecha_expiracion ? '' : 'checked'} onchange="toggleEditNoExpira()"> No expira</label>
+      <div id="cuponEditPickerWrap" style="margin-top:10px;display:${c.fecha_expiracion ? 'block' : 'none'}">${pickerFechaHoraHtml('cuponEdit')}</div>`;
+    if (c.fecha_expiracion) pickerEstablecer('cuponEdit', c.fecha_expiracion);
   }
+  document.getElementById('modalCuponCampo').classList.add('active');
+}
 
+function toggleEditNoExpira(){
+  const noExpira = document.getElementById('cuponEditNoExpira').checked;
+  document.getElementById('cuponEditPickerWrap').style.display = noExpira ? 'none' : 'block';
+  if (!noExpira && !document.getElementById('cuponEditFecha').value) pickerRapido('cuponEdit', 'hoy');
+}
+
+function cerrarCuponCampo(){
+  document.getElementById('modalCuponCampo').classList.remove('active');
+  cuponCampoEditando = null;
+}
+
+async function guardarCuponCampo(){
+  if (!cuponCampoEditando) return;
+  const { id, modo } = cuponCampoEditando;
+  let cambios;
+  if (modo === 'usos') {
+    const sinLimite = document.getElementById('cuponEditSinLimite').checked;
+    const n = parseInt(document.getElementById('cuponEditUsos').value, 10);
+    if (!sinLimite && (isNaN(n) || n < 1)) return showToast('Ingresa 1 o más usos, o marca "Sin límite"', 'error');
+    cambios = { usos_por_usuario: sinLimite ? null : n };
+  } else if (document.getElementById('cuponEditNoExpira').checked) {
+    cambios = { fecha_expiracion: null };
+  } else {
+    const iso = pickerLeerIso('cuponEdit');
+    if (!iso) return showToast('Elige el día y la hora de expiración', 'error');
+    if (new Date(iso) <= new Date()) return showToast('Esa fecha ya pasó', 'error');
+    cambios = { fecha_expiracion: iso };
+  }
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/codigos_descuento?id=eq.${id}`, {
       method: 'PATCH',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ fecha_expiracion })
+      body: JSON.stringify(cambios)
     });
-    if (!res.ok) { showToast('Error al actualizar la expiración', 'error'); return; }
-    showToast(fecha_expiracion ? `Vence en ${horas}h actualizado ✅` : 'Ya no expira ✅', 'success');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast((err.message || '').includes('usos_por_usuario') ? 'Falta correr el SQL "cupones_usos_por_usuario" en Supabase' : 'Error al guardar el cambio', 'error');
+      return;
+    }
+    showToast(modo === 'usos' ? 'Usos por persona actualizado ✅' : (cambios.fecha_expiracion ? 'Vencimiento actualizado ✅' : 'Ya no expira ✅'), 'success');
+    cerrarCuponCampo();
     renderCupones();
   } catch (e) {
     showToast('Error de conexión', 'error');
@@ -3554,23 +3710,36 @@ async function eliminarCupon(id, codigo){
 
 async function verUsuariosCupon(id, codigo){
   document.getElementById('tituloUsuariosCupon').textContent = `Usuarios que usaron ${codigo}`;
-  document.getElementById('listaUsuariosCupon').innerHTML = 'Cargando...';
+  const cont = document.getElementById('listaUsuariosCupon');
+  cont.innerHTML = 'Cargando...';
   document.getElementById('modalUsuariosCupon').classList.add('active');
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/codigos_descuento_usos?codigo_id=eq.${id}&select=*&order=ultima_vez.desc`, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` }
-  });
-  const data = await res.json();
-  const cont = document.getElementById('listaUsuariosCupon');
-  if (!Array.isArray(data) || !data.length) {
+  const cupon = cuponesData.find(c => c.id === id);
+  const limite = cupon ? usosDeCupon(cupon) : null;
+  const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${ADMIN_TOKEN||SUPABASE_KEY}` };
+
+  let data = null;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/cupon_usos_por_usuario`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_codigo_id: id }) });
+    if (r.ok) data = await r.json();
+  } catch (e) {}
+  if (!Array.isArray(data)) {    // el SQL nuevo todavía no está instalado: se usa el registro antiguo
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/codigos_descuento_usos?codigo_id=eq.${id}&select=*&order=ultima_vez.desc`, { headers });
+    const antiguos = await res.json();
+    data = Array.isArray(antiguos) ? antiguos.map(u => ({ email: u.email, usos: u.veces_usado, productos: u.veces_usado })) : [];
+  }
+  if (!data.length) {
     cont.innerHTML = '<p style="color:#999">Nadie ha usado (pagado) este código todavía.</p>';
     return;
   }
-  cont.innerHTML = data.map(u => `
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #eee">
+  cont.innerHTML = data.map(u => {
+    const alcanzo = limite !== null && u.usos >= limite;
+    return `<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #eee">
       <span>${u.email}</span>
-      <span>${u.veces_usado > 1 ? `<strong>${u.veces_usado}x</strong>` : '✅'}</span>
-    </div>`).join('');
+      <span style="text-align:right"><strong>${u.usos}</strong> ${u.usos === 1 ? 'uso' : 'usos'}${limite !== null ? ` de ${limite}` : ''}${alcanzo ? ' <span title="Llegó al límite">🔒</span>' : ''}
+        <span style="color:#999;font-size:0.78rem">· ${u.productos} producto${u.productos === 1 ? '' : 's'}</span></span>
+    </div>`;
+  }).join('');
 }
 
 async function exportarReporteCupon(){
@@ -3964,7 +4133,7 @@ async function renderHistorialSorteos(){
         </div></td>
       </tr>`).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Error al cargar</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Error al cargar</td></tr>';
   }
 }
 
@@ -5233,6 +5402,19 @@ window.addEventListener("popstate", () => {
     <button type="button" class="modal-close-x" onclick="document.getElementById('modalUsuariosCupon').classList.remove('active')" title="Cerrar" aria-label="Cerrar">✕</button>
     <h2 style="margin-top:0" id="tituloUsuariosCupon">Usuarios que usaron este código</h2>
     <div id="listaUsuariosCupon" style="max-height:50vh;overflow-y:auto">Cargando...</div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR USOS / VENCIMIENTO DE UN CUPON -->
+<div class="modal-overlay" id="modalCuponCampo">
+  <div class="modal" style="max-width:480px;position:relative">
+    <button type="button" class="modal-close-x" onclick="cerrarCuponCampo()" title="Cerrar" aria-label="Cerrar">✕</button>
+    <h2 style="margin-top:0" id="cuponCampoTitulo">Editar cupón</h2>
+    <div id="cuponCampoCuerpo"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+      <button type="button" class="btn-sm" onclick="cerrarCuponCampo()">Cancelar</button>
+      <button type="button" class="btn-guardar" style="width:auto;padding:10px 24px" onclick="guardarCuponCampo()">Guardar</button>
+    </div>
   </div>
 </div>
 
